@@ -1,7 +1,9 @@
 use clap::{Parser, Subcommand};
 
 
-// Command design structure for commands
+// Command design structure:
+// This setup allows commands to be easily separated and reused.
+// Even if we later create a non-CLI version, the commands remain modular.
 mod commands {
     pub mod connect;
     pub mod login; 
@@ -72,7 +74,7 @@ impl Commands {
         match self {
             // We have to create a heap pointer, because of the different types
             Commands::Connect { host, port } => Box::new(ConnectCommand::new(host, port)),
-            Commands::Login { username, password } => Box::new(ConnectCommand::new(username, password)),
+            Commands::Login { username, password } => Box::new(LoginCommand::new(username, password)),
             Commands::Join { game } => Box::new(JoinCommand::new(game)),
             Commands::Order { name } => Box::new(OrderCommand::new(name)),
             Commands::Map {save_image} => Box::new(MapCommand::new(save_image))

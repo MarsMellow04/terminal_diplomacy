@@ -4,3 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+postgres = "0.19.11"
+sea-query = "1.0.0-rc.1"

@@ -1,6 +1,9 @@
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 
+pub mod data;
+use data::start_database;
+
 fn handle_client(mut stream: TcpStream) {
     // Create a buffer 
     let mut buffer = [0; 1024];
@@ -11,6 +14,8 @@ fn handle_client(mut stream: TcpStream) {
     stream.write(response).expect("Failed to write the response");
 }
 fn main() {
+    start_database().expect("Failed to start to database");
+
     let listener = TcpListener::bind("127.0.0.1:8080")
     .expect("Failed to bind address");
     println!("Server listening on 127.0.0.1:8080");

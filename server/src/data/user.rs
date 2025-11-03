@@ -4,11 +4,11 @@ use sea_orm::prelude::*;
 #[sea_orm(table_name = "users")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    id: i32,
-    username: String,
+    pub id: i32,
+    pub username: String,
     #[sea_orm(column_type = "Text")]
-    password_hash: String, 
-    created_at: time::PrimitiveDateTime,
+    pub password_hash: String, 
+    pub created_at: time::PrimitiveDateTime,
 }
 
 #[derive(Debug, Clone, EnumIter, DeriveRelation)]

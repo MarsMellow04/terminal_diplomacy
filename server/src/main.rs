@@ -2,13 +2,21 @@ use std::error::Error;
 use std::io::{Read, Write};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use std::sync::Arc;
 
 // Data contains helper functions related to connecting or adding/deteleting for the db
 mod data;
 use data::connection_pool::ConnectionPool;
 use data::add_user;
+use data::user::Model as UserModel;
 
-async fn handle_client(mut stream: TcpStream, connection: ConnectionPool) -> Result<(), Box<dyn Error>> {
+//Connection Mnagaer stuff
+mod auth;
+use auth::connections_manager::ConnectionsManager;
+
+use crate::data::user;
+
+async fn handle_client(mut stream: TcpStream, cm: Arc<ConnectionsManager>) -> Result<(), Box<dyn Error>> {
     // Create a buffer
     let mut buf = [0; 1024];
 
@@ -24,26 +32,41 @@ async fn handle_client(mut stream: TcpStream, connection: ConnectionPool) -> Res
         }
     };
 
-    let request = String::from_utf8_lossy(&buf[..n]);
-    let message = request.to_string();
+    let buf_str: std::borrow::Cow<'_, str> = String::from_utf8_lossy(&buf[..n]);
+    let data: Vec<String> = buf_str.split(";")
+                .map(|x| x.to_string().replace("\n", ""))
+                .collect();
 
-    println!("Received message: {}", message);
+    println!("Received message: {:?}", data);
+    let command = data[0].clone();
 
-    // Simple message parsing logic
-    if message.contains("Login, ") {
-        if let Some(rest) = message.strip_prefix("Login, ") {
-            let parts: Vec<&str> = rest.split(':').collect();
-            if parts.len() == 2 {
-                if let Err(e) = add_user(parts[0].to_string(), parts[1].to_string(), connection.get_connection()).await {
-                    eprintln!("Error adding user: {:?}", e);
-                    return Err(Box::new(e)); 
+    match command.as_str() {
+        "LOGIN" => {
+            let username = data[1].clone();
+            let password = data[2].clone();
+            let query_result = cm.handle_login(username, password).await;
+            match query_result {
+                Ok(Some(user)) => {
+                    println!("Found some user {:?}", user);
                 }
-            } else {
-                eprintln!("Malformed login message");
-                return Err("Malformed login message".into());
+                Ok(None) => {
+                    println!("No user found");
+                } 
+                Err(e) => {
+                    eprintln!("Lol databse error {}", e);
+                }
             }
         }
-    }
+        "REGISTER" => {
+            let username = data[1].clone();
+            let password = data[2].clone();
+            cm.handle_registration(username, password).await?;
+        }
+        _ => {
+            eprintln!("Malformed login message");
+            return Err("Malformed login message".into());
+        }
+    };
 
     let response = b"Hello Client!";
     if let Err(e) = stream.write_all(response).await {
@@ -57,16 +80,17 @@ async fn handle_client(mut stream: TcpStream, connection: ConnectionPool) -> Res
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>>{
     const CONNECTION_STRING: &str = "postgresql://postgres:mysecretpassword@localhost/terminal_diplomacy";
-    let pool = ConnectionPool::connect(CONNECTION_STRING).await;
+    let pool = Arc::new(ConnectionPool::connect(CONNECTION_STRING).await);
+    let cm = Arc::new(ConnectionsManager::new(pool));
 
     let listener = TcpListener::bind("127.0.0.1:8080").await?;
     println!("Server listening on 127.0.0.1:8080");
 
     loop {
         let (mut socket, _) = listener.accept().await?;
-        let pool = pool.clone();
+        let cm_clone = cm.clone();
         tokio::spawn(async move {
-            if let Err(e) = handle_client(socket, pool).await {
+            if let Err(e) = handle_client(socket, cm_clone).await {
                 eprintln!("Client error: {e:?}");
             }
         });

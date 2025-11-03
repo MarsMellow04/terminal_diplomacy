@@ -10,6 +10,7 @@ mod commands {
     pub mod join; 
     pub mod order;
     pub mod map;
+    pub mod register;
 }
 
 pub use commands::connect::ConnectCommand;
@@ -17,6 +18,7 @@ pub use commands::login::LoginCommand;
 pub use commands::join::JoinCommand;
 pub use commands::order::OrderCommand;
 pub use commands::map::MapCommand;
+pub use commands::register::RegisterCommand;
 
 pub trait Command {
     fn execute(&self) -> bool;
@@ -66,7 +68,15 @@ enum Commands {
     /// Showcase the map of the game
     Map {
         save_image: bool
-    }
+    },
+    //// Register user 
+    Register {
+        #[arg(short, long, required = true)]
+        username: String,
+
+        #[arg(short, long, required = true)]
+        password: String,
+    },
 }
 
 impl Commands {
@@ -77,7 +87,8 @@ impl Commands {
             Commands::Login { username, password } => Box::new(LoginCommand::new(username, password)),
             Commands::Join { game } => Box::new(JoinCommand::new(game)),
             Commands::Order { name } => Box::new(OrderCommand::new(name)),
-            Commands::Map {save_image} => Box::new(MapCommand::new(save_image))
+            Commands::Map {save_image} => Box::new(MapCommand::new(save_image)),
+            Commands::Register { username, password } => Box::new(RegisterCommand::new(username, password))
         }
     }
 }

@@ -1,47 +1,74 @@
+use std::error::Error;
 use std::io::{Read, Write};
-use std::net::{TcpListener, TcpStream};
-use std::sync::Arc;
+use tokio::net::{TcpListener, TcpStream};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-pub mod data;
-use data::start_database;
+// Data contains helper functions related to connecting or adding/deteleting for the db
+mod data;
+use data::connection_pool::ConnectionPool;
 use data::add_user;
-use sea_orm::DatabaseConnection;
 
-async fn handle_client(mut stream: TcpStream, connection: &DatabaseConnection) {
-    // Create a buffer 
-    let mut buffer = [0; 1024];
-    stream.read(&mut buffer ).expect("Failed to read the buffer message");
-    let request = String::from_utf8_lossy(&buffer);
-    let message = request.to_string();
-    println!("Recieved message {}", request);
-    if message.contains("Login,") {
-        let parts: Vec<&str> = message.strip_prefix("Login, ").expect("Could not parse message").split(':').collect();
-        
-        add_user(parts[0].to_string(), parts[1].to_string(), connection).await.unwrap()
+async fn handle_client(mut stream: TcpStream, connection: ConnectionPool) -> Result<(), Box<dyn Error>> {
+    // Create a buffer
+    let mut buf = [0; 1024];
+
+    let n = match stream.read(&mut buf).await {
+        Ok(0) => {
+            println!("Client has disconnected");
+            return Ok(()); 
+        }
+        Ok(n) => n, // bytes read
+        Err(e) => {
+            eprintln!("Error reading from socket: {:?}", e);
+            return Err(Box::new(e));
+        }
     };
-    let response = "Hello Client!".as_bytes();
-    stream.write(response).expect("Failed to write the response");
+
+    let request = String::from_utf8_lossy(&buf[..n]);
+    let message = request.to_string();
+
+    println!("Received message: {}", message);
+
+    // Simple message parsing logic
+    if message.contains("Login, ") {
+        if let Some(rest) = message.strip_prefix("Login, ") {
+            let parts: Vec<&str> = rest.split(':').collect();
+            if parts.len() == 2 {
+                if let Err(e) = add_user(parts[0].to_string(), parts[1].to_string(), connection.get_connection()).await {
+                    eprintln!("Error adding user: {:?}", e);
+                    return Err(Box::new(e)); 
+                }
+            } else {
+                eprintln!("Malformed login message");
+                return Err("Malformed login message".into());
+            }
+        }
+    }
+
+    let response = b"Hello Client!";
+    if let Err(e) = stream.write_all(response).await {
+        eprintln!("Error writing response: {:?}", e);
+        return Err(Box::new(e));
+    }
+
+    Ok(())
 }
 
 #[tokio::main]
-async fn main() {
-    let connection: Arc<DatabaseConnection> = Arc::new(start_database().await.expect("Failed to start to database"));
+async fn main() -> Result<(), Box<dyn std::error::Error>>{
+    const CONNECTION_STRING: &str = "postgresql://postgres:mysecretpassword@localhost/terminal_diplomacy";
+    let pool = ConnectionPool::connect(CONNECTION_STRING).await;
 
-    let listener = TcpListener::bind("127.0.0.1:8080")
-    .expect("Failed to bind address");
+    let listener = TcpListener::bind("127.0.0.1:8080").await?;
     println!("Server listening on 127.0.0.1:8080");
-    
-    for stream in listener.incoming() {
-        match stream {
-            Ok(stream) => {
-                let connection = Arc::clone(&connection);
-                tokio::spawn(async move {
-                    handle_client(stream, &connection).await;
-                });
+
+    loop {
+        let (mut socket, _) = listener.accept().await?;
+        let pool = pool.clone();
+        tokio::spawn(async move {
+            if let Err(e) = handle_client(socket, pool).await {
+                eprintln!("Client error: {e:?}");
             }
-            Err(e) => {
-                eprintln!("Failed to establish connection: {}", e);
-            }
-        }
+        });
     }
 }

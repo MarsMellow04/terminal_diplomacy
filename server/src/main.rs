@@ -14,7 +14,12 @@ use data::user::Model as UserModel;
 mod auth;
 use auth::connections_manager::ConnectionsManager;
 
+// Use this for the game stuff
+pub mod game;
+
 use crate::data::user;
+use crate::game::game_repository::GameRepository;
+use crate::game::game_service::{self, GameService};
 
 async fn handle_client(mut stream: TcpStream, cm: Arc<ConnectionsManager>) -> Result<(), Box<dyn Error>> {
     // Create a buffer
@@ -60,7 +65,25 @@ async fn handle_client(mut stream: TcpStream, cm: Arc<ConnectionsManager>) -> Re
         "REGISTER" => {
             let username = data[1].clone();
             let password = data[2].clone();
-            cm.handle_registration(username, password).await?;
+            let query_result = cm.handle_registration(username, password).await?;
+        }
+        "JOIN" => {
+            let game_id =  data[1].parse::<i32>().unwrap();
+            let query_result = cm.handle_join(game_id).await;
+            match query_result {
+                Ok(Some(game)) => {
+                    println!("Found some game {:?}", game);
+                }
+                Ok(None) => {
+                    println!("No game found");
+                } 
+                Err(e) => {
+                    eprintln!("Lol databse error {}", e);
+                }
+            }
+        }
+        "CREATE" => {
+            cm.handle_create().await;
         }
         _ => {
             eprintln!("Malformed login message");
@@ -79,9 +102,11 @@ async fn handle_client(mut stream: TcpStream, cm: Arc<ConnectionsManager>) -> Re
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>>{
-    const CONNECTION_STRING: &str = "postgresql://postgres:mysecretpassword@localhost/terminal_diplomacy";
+    const CONNECTION_STRING: &str = "postgresql://postgres:mysecretpassword@localhost:5433/postgres";
     let pool = Arc::new(ConnectionPool::connect(CONNECTION_STRING).await);
-    let cm = Arc::new(ConnectionsManager::new(pool));
+    let game_repo = Arc::new(GameRepository::new(pool.clone()));
+    let game_service:Arc<GameService> = Arc::new(GameService::new(game_repo));
+    let cm = Arc::new(ConnectionsManager::new(pool, game_service));
 
     let listener = TcpListener::bind("127.0.0.1:8080").await?;
     println!("Server listening on 127.0.0.1:8080");

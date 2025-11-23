@@ -11,6 +11,7 @@ mod commands {
     pub mod order;
     pub mod map;
     pub mod register;
+    pub mod create;
 }
 
 pub use commands::connect::ConnectCommand;
@@ -19,6 +20,7 @@ pub use commands::join::JoinCommand;
 pub use commands::order::OrderCommand;
 pub use commands::map::MapCommand;
 pub use commands::register::RegisterCommand;
+pub use commands::create::CreateCommand;
 
 pub trait Command {
     fn execute(&self) -> bool;
@@ -77,6 +79,8 @@ enum Commands {
         #[arg(short, long, required = true)]
         password: String,
     },
+    /// Create a new Gaem
+    Create {}
 }
 
 impl Commands {
@@ -88,7 +92,8 @@ impl Commands {
             Commands::Join { game } => Box::new(JoinCommand::new(game)),
             Commands::Order { name } => Box::new(OrderCommand::new(name)),
             Commands::Map {save_image} => Box::new(MapCommand::new(save_image)),
-            Commands::Register { username, password } => Box::new(RegisterCommand::new(username, password))
+            Commands::Register { username, password } => Box::new(RegisterCommand::new(username, password)),
+            Commands::Create {  } => Box::new(CreateCommand::new())
         }
     }
 }

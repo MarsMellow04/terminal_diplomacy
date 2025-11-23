@@ -29,12 +29,12 @@ impl GameRegistry{
 
     }
 
-    pub fn get_game() {
-
+    pub fn get_game(&self, game_id: &Uuid) -> Option<&GameHandler>{
+        self.games.get(game_id)
     }
 
-    pub fn get_mut_game() {
-
+    pub fn get_mut_game(&mut self, game_id: &Uuid) -> Option<&mut GameHandler>{
+        self.games.get_mut(game_id)
     }
 
     

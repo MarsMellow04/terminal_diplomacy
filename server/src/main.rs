@@ -68,19 +68,8 @@ async fn handle_client(mut stream: TcpStream, cm: Arc<ConnectionsManager>) -> Re
             let query_result = cm.handle_registration(username, password).await?;
         }
         "JOIN" => {
-            let game_id =  data[1].parse::<i32>().unwrap();
-            let query_result = cm.handle_join(game_id).await;
-            match query_result {
-                Ok(Some(game)) => {
-                    println!("Found some game {:?}", game);
-                }
-                Ok(None) => {
-                    println!("No game found");
-                } 
-                Err(e) => {
-                    eprintln!("Lol databse error {}", e);
-                }
-            }
+            let game_id =  data[1].clone();
+            cm.handle_join(&game_id).await;
         }
         "CREATE" => {
             cm.handle_create().await;

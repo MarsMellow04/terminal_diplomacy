@@ -15,6 +15,8 @@ pub enum GamePhase {
     WinterBuild,
 }
 
+// TODO: This should be primary key of the name 
+
 #[derive(Debug, Clone, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "games")]
 pub struct Model {

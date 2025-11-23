@@ -1,7 +1,8 @@
 use uuid::Uuid;
+use std::iter::Successors;
 use std::sync::Arc;
 
-use crate::game::game_handler::{self, GameHandler};
+use crate::game::game_handler::{self, GameHandler, JoinError};
 use crate::game::game_instance::GameInstance;
 use crate::game::game_registry::GameRegistry;
 
@@ -36,6 +37,47 @@ impl GameService {
                 registry.delete(&game_id);
             }
         }
+        // TODO: This doesnt make sense if the game has been deleted from runtime, it will create a key error
         game_id
+    }
+
+    pub async fn join_game(&self, given_id: &Uuid, user_id: Uuid) -> Result<(), JoinError> {
+        // Join a game using by finding if the game exists, afterwars then update it
+        let mut registry = GAME_REGISTRY.write().await;
+        // Find game:
+        let gh: &mut GameHandler = match registry.get_mut_game(given_id) {
+            Some(gh) => {gh}
+            None => {
+                eprintln!("[GAME_SERV_ERROR] Failed to find game! ");
+                // Maybe add more here 
+                return Err(JoinError);
+            }
+        };
+
+        match gh.try_join(user_id) {
+            Err(e) => {
+                eprintln!("[GAME_SERV_ERROR] Failed to join game! {e}");
+                println!("Please try again to join game");
+            }
+            Ok(()) => {
+                println!("Successfully joined game!");
+            }
+        };
+
+        // Db allocation for user I will do this once the users work properly
+        // let db_result = self.game_repo.inser_user_(game_id).await;
+        // match db_result {
+        //     Ok(()) => {
+        //         println!("Result is a success! Added to db");
+        //     }
+        //     Err(e) => {
+        //         eprintln!("Error failed to add to databse!: {e}");
+        //         registry.delete(&game_id);
+        //     }
+        // }
+
+
+        Ok(())
+
     }
 }

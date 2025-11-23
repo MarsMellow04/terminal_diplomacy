@@ -5,6 +5,7 @@ use crate::data::user::{Entity as User, Column as UserColumn, Model as UserModel
 use crate::data::game::{Entity as Game, Column as GameColumn, Model as GameModel, ActiveModel as ActiveGameModel};
 use sea_orm::{EntityTrait, ColumnTrait, QueryFilter};
 use sea_orm::DbErr;
+use uuid::{uuid,Uuid};
 
 
 // for adding
@@ -55,17 +56,24 @@ impl ConnectionsManager {
         Ok(())
 
 }
-    pub async fn handle_join(&self, game_id: i32 ) -> Result<Option<GameModel>, sea_orm::DbErr>{
-        let conn = self.pool.get_connection();
-        // neeed to figure out how I do this, I 
-        if let Some(game) = Game::find()
-            .filter(GameColumn::GameId.eq(game_id))
-            .one(conn)
-            .await?
-            {
-                return Ok( Some(game));
-            }   
-        Ok( None )
+    pub async fn handle_join(&self, game_str: &str ) {
+        let game_id = match Uuid::parse_str(game_str) {
+            Ok(id) => id,
+            Err(e) => {
+                eprint!("This is annoying {e}");
+                return;
+            }
+        };
+
+        // Time being just making a fake user id:
+        let user_id = Uuid::new_v4();
+        match self.game_service.join_game( &game_id,user_id ).await {
+            Ok(()) => {println!("Game joined succesffully ");}
+            Err(e) => {
+                println!("lol not dealing with this {e}");
+                return;
+            }
+        }
     }
 
     pub async fn handle_create(&self) {

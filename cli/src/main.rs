@@ -1,5 +1,8 @@
 use clap::{Parser, Subcommand};
 
+// Need it in main
+mod interactive;
+
 
 // Command design structure:
 // This setup allows commands to be easily separated and reused.
@@ -64,7 +67,7 @@ enum Commands {
     },
     /// Submit order to game
     Order {
-        #[arg(short, long, required = true)]
+        #[arg(short, long, required = false)]
         name: String,
     },
     /// Showcase the map of the game
@@ -90,7 +93,7 @@ impl Commands {
             Commands::Connect { host, port } => Box::new(ConnectCommand::new(host, port)),
             Commands::Login { username, password } => Box::new(LoginCommand::new(username, password)),
             Commands::Join { game } => Box::new(JoinCommand::new(game)),
-            Commands::Order { name } => Box::new(OrderCommand::new(name)),
+            Commands::Order { name } => Box::new(OrderCommand::new(Some(name))),
             Commands::Map {save_image} => Box::new(MapCommand::new(save_image)),
             Commands::Register { username, password } => Box::new(RegisterCommand::new(username, password)),
             Commands::Create {  } => Box::new(CreateCommand::new())

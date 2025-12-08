@@ -1,13 +1,13 @@
+use crate::interactive::state_machine::MachineData;
 use crate::interactive::state_machine::State;
 use crate::interactive::state_machine::StateMachine;
 use crate::interactive::states::show_orders::ShowOrders;
 use crate::interactive::states::terminal_state::TerminalState;
+use crate::interactive::state_machine::InputResult;
 
 pub struct ShowUnitState {
     pub current_units: Vec<String>,
     pub selected_unit: Option<String>,
-    pub wish_to_quit: bool,
-    pub needs_restart: bool,
 }
 
 impl ShowUnitState {
@@ -15,69 +15,38 @@ impl ShowUnitState {
         Self {
             current_units: units,
             selected_unit: None,
-            wish_to_quit: false,
-            needs_restart: false
         }
     }
 }
 
 impl State for ShowUnitState {
-    fn render(&self) {
-        // Get current units
-        if self.needs_restart {
-            println!("Please re-pick!");
-        }
-        else {
-            println!("\nEnter a number or 'q' to quit:");
-            println!("\n\n Pick a unit: \n\n");
-            for (i, unit) in self.current_units.iter().enumerate() {
-                println!("{} ) {}", i + 1, unit)
-            }
+    fn render(&self, _machine: &StateMachine) {
+        println!("\nPick a unit or 'q' to quit, 'b' to go back:");
+        for (i, unit) in self.current_units.iter().enumerate() {
+            println!("{} ) {}", i + 1, unit);
         }
     }
 
-    fn handle_input(&mut self, input: &str) {
-        // Options for input: quit, select, if incorrect input next is same
-        if input == "q" {
-            self.wish_to_quit = true;
-            println!("Ok thank you!");
-            return ;
-
+    fn handle_input(&mut self, input: &str, _machine_data: &mut MachineData) -> Option<InputResult> {
+        match input.trim() {
+            "q" => return Some(InputResult::Quit),
+            "b" => return Some(InputResult::Continue), // update() will handle back
+            _ => {}
         }
 
-        // Compare the input (parsing)
-        let index = match input.trim().parse::<usize>() {
-            Ok(num) if num > 0 => num - 1,
-            _ => {
-                self.needs_restart = true;
-                return;
-            }
+        let index = match input.parse::<usize>() {
+            Ok(n) if n > 0 && n <= self.current_units.len() => n - 1,
+            _ => return Some(InputResult::Continue),
         };
 
-        // Check that the input is in bounds
-        if index >= self.current_units.len() {
-            self.needs_restart = true;
-            return;
-        }
-
         self.selected_unit = Some(self.current_units[index].clone());
+        Some(InputResult::Advance)
     }
 
     fn next(self: Box<Self>, machine: &mut StateMachine) -> Box<dyn State> {
-        if self.wish_to_quit {
-            // Move to terminal
-            return Box::new(TerminalState)
-        }
-        if self.selected_unit.is_none() {
-            // Restart
-            return Box::new(*self)
-        }
         machine.data.selected_unit = self.selected_unit.clone();
-        return Box::new(ShowOrders::new(self.selected_unit.unwrap()));
-        
+        Box::new(ShowOrders::new(self.selected_unit.unwrap()))
     }
 
-    fn is_terminal(&self) -> bool {
-        false
-    }
+    fn is_terminal(&self) -> bool { false }
 }

@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 
 // Need it in main
 mod interactive;
+mod rules;
 
 
 // Command design structure:

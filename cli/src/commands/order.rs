@@ -148,7 +148,7 @@ impl Command for OrderCommand {
             )
         ));
         while !machine.is_finished() {
-            machine.state.render();
+            machine.state.render(&machine);
 
             print!("> ");
             io::stdout().flush().unwrap();

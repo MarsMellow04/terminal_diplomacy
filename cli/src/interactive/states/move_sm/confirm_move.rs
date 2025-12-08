@@ -4,6 +4,7 @@ use diplomacy::order::{MainCommand, MoveCommand};
 
 use crate::interactive::state_machine::{InputResult, MachineData, State};
 use crate::interactive::state_machine::StateMachine;
+use crate::interactive::states::show_units::{self, ShowUnitState};
 use crate::interactive::states::terminal_state::TerminalState;
 use crate::rules::order_builder::OrderBuidler;
 
@@ -42,7 +43,10 @@ impl State for ConfirmMove {
             .build();
         machine.data.orders.push(order);
         println!("{:?}", machine.data.orders);
-        Box::new(TerminalState)
+        println!("{:?}", machine.data.units_remaining);
+        let index = machine.data.units_remaining.iter().position(|x| *x == unit).unwrap();
+        let remaining_units = machine.data.units_remaining.remove(index);
+        Box::new(ShowUnitState::new())
     }
 
     fn is_terminal(&self) -> bool {

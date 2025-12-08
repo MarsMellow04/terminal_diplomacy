@@ -139,14 +139,13 @@ impl Command for OrderCommand {
             println!("Flags have been added! will skip interactive method")
         }
         use std::io::{self, Write};
-        let mut machine = StateMachine::new(Box::new(
-            ShowUnitState::new(
-                vec!["FRA: F bre", "FRA: A par","FRA: A mar"]
+        let mut machine = StateMachine::new(
+            Box::new(ShowUnitState::new()),
+            vec!["FRA: F bre", "FRA: A par","FRA: A mar"]
                 .into_iter()
                 .map(|str | str.to_string())
                 .collect()
-            )
-        ));
+        );
         while !machine.is_finished() {
             machine.state.render(&machine);
 

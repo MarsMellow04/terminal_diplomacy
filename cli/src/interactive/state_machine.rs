@@ -32,10 +32,10 @@ pub struct MachineData {
 }
 
 impl StateMachine {
-    pub fn new(inital_state:Box<dyn State> ) -> Self {
+    pub fn new(inital_state:Box<dyn State>, initial_units: Vec<String>) -> Self {
         Self {
             data: MachineData {
-                units_remaining: vec![],
+                units_remaining: initial_units,
                 selected_unit: None,
                 orders: vec![],
                 selected_order: None,

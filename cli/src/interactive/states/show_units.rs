@@ -6,28 +6,26 @@ use crate::interactive::states::terminal_state::TerminalState;
 use crate::interactive::state_machine::InputResult;
 
 pub struct ShowUnitState {
-    pub current_units: Vec<String>,
     pub selected_unit: Option<String>,
 }
 
 impl ShowUnitState {
-    pub fn new(units: Vec<String>) -> Self {
+    pub fn new() -> Self {
         Self {
-            current_units: units,
             selected_unit: None,
         }
     }
 }
 
 impl State for ShowUnitState {
-    fn render(&self, _machine: &StateMachine) {
+    fn render(&self, machine: &StateMachine) {
         println!("\nPick a unit or 'q' to quit, 'b' to go back:");
-        for (i, unit) in self.current_units.iter().enumerate() {
+        for (i, unit) in machine.data.units_remaining.iter().enumerate() {
             println!("{} ) {}", i + 1, unit);
         }
     }
 
-    fn handle_input(&mut self, input: &str, _machine_data: &mut MachineData) -> Option<InputResult> {
+    fn handle_input(&mut self, input: &str, machine_data: &mut MachineData) -> Option<InputResult> {
         match input.trim() {
             "q" => return Some(InputResult::Quit),
             "b" => return Some(InputResult::Continue), // update() will handle back
@@ -35,11 +33,11 @@ impl State for ShowUnitState {
         }
 
         let index = match input.parse::<usize>() {
-            Ok(n) if n > 0 && n <= self.current_units.len() => n - 1,
+            Ok(n) if n > 0 && n <= machine_data.units_remaining.len() => n - 1,
             _ => return Some(InputResult::Continue),
         };
 
-        self.selected_unit = Some(self.current_units[index].clone());
+        self.selected_unit = Some(machine_data.units_remaining[index].clone());
         Some(InputResult::Advance)
     }
 

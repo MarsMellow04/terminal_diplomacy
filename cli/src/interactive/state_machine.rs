@@ -1,5 +1,5 @@
 use diplomacy::{UnitPosition, judge::MappedMainOrder, order::MainCommand};
-use crate::interactive::states::terminal_state::TerminalState;
+use crate::{interactive::states::terminal_state::TerminalState, rules::order_builder::OrderBuilder};
 use super::states::show_orders::PrintCommand;
 
 pub trait State {
@@ -24,22 +24,27 @@ pub struct StateMachine {
 
 pub struct MachineData {
     /// Machine data uses strings which are then adapted into orders
+    /// 
+    pub all_units: Vec<String>,
     pub units_remaining: Vec<String>,
     pub selected_unit: Option<String>,
     pub orders: Vec<MappedMainOrder>,
     pub selected_order: Option<PrintCommand>,
     pub selected_destination: Option<String>,
+    pub current_order: OrderBuilder
 }
 
 impl StateMachine {
     pub fn new(inital_state:Box<dyn State>, initial_units: Vec<String>) -> Self {
         Self {
             data: MachineData {
-                units_remaining: initial_units,
+                all_units: initial_units.clone(),
+                units_remaining: initial_units.clone(),
                 selected_unit: None,
                 orders: vec![],
                 selected_order: None,
-                selected_destination: None
+                selected_destination: None,
+                current_order: OrderBuilder::new()
 
             },
             state: inital_state,

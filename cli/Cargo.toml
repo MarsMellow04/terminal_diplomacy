@@ -12,3 +12,4 @@ serde_json = "1.0.145"
 num_enum = "0.7"
 
 common = { path = "../common" }
+inquire = "0.9.1"

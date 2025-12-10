@@ -5,7 +5,7 @@ use diplomacy::order::{MainCommand, MoveCommand};
 use crate::interactive::state_machine::{InputResult, MachineData, State};
 use crate::interactive::state_machine::StateMachine;
 use crate::interactive::states::terminal_state::TerminalState;
-use crate::rules::order_builder::OrderBuidler;
+use crate::rules::order_builder::OrderBuilder;
 
 pub struct ConfirmHold {
 }
@@ -34,12 +34,12 @@ impl State for ConfirmHold {
         let unit = machine.data.selected_unit.as_ref().unwrap().clone();
 
         // I want the parsing for orders to occur now
-        let order = OrderBuidler::new()
+        let order = OrderBuilder::new()
             .nation("Fra")
             .for_unit(&unit)
             .hold()
             .build();
-        machine.data.orders.push(order);
+        machine.data.orders.push(order.unwrap());
         println!("{:?}", machine.data.orders);
         Box::new(TerminalState)
     }

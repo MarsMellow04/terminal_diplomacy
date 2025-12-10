@@ -6,6 +6,7 @@ use crate::interactive::state_machine::{InputResult, MachineData, State};
 use crate::interactive::state_machine::StateMachine;
 use crate::interactive::states::hold_sm::confirm_hold::ConfirmHold;
 use crate::interactive::states::move_sm::pick_move::PickMoveState;
+use crate::interactive::states::support_sm::choose_support_dest::ChooseSupportUnitState;
 use crate::interactive::states::terminal_state::TerminalState;
 use std::fmt::{self, Display, Formatter};
 
@@ -108,6 +109,7 @@ impl State for ShowOrders {
         match machine.data.selected_order.as_ref().unwrap() {
             PrintCommand::Move => {Box::new(PickMoveState::new())}
             PrintCommand::Hold => {Box::new(ConfirmHold::new())}
+            PrintCommand::Support => {Box::new(ChooseSupportUnitState::new())}
             _ => {Box::new(TerminalState)}
         }
         

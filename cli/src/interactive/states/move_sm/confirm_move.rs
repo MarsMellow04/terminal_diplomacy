@@ -6,7 +6,7 @@ use crate::interactive::state_machine::{InputResult, MachineData, State};
 use crate::interactive::state_machine::StateMachine;
 use crate::interactive::states::show_units::{self, ShowUnitState};
 use crate::interactive::states::terminal_state::TerminalState;
-use crate::rules::order_builder::OrderBuidler;
+use crate::rules::order_builder::OrderBuilder;
 
 pub struct ConfirmMove {
 }
@@ -36,12 +36,12 @@ impl State for ConfirmMove {
         let dest = machine.data.selected_destination.as_ref().unwrap().clone();
 
         // I want the parsing for orders to occur now
-        let order = OrderBuidler::new()
+        let order = OrderBuilder::new()
             .nation("Fra")
             .for_unit(&unit)
             .move_to(&dest)
             .build();
-        machine.data.orders.push(order);
+        machine.data.orders.push(order.unwrap());
         println!("{:?}", machine.data.orders);
         println!("{:?}", machine.data.units_remaining);
         let index = machine.data.units_remaining.iter().position(|x| *x == unit).unwrap();

@@ -141,7 +141,7 @@ impl Command for OrderCommand {
         use std::io::{self, Write};
         let mut machine = StateMachine::new(
             Box::new(ShowUnitState::new()),
-            vec!["FRA: F bre", "FRA: A par","FRA: A mar"]
+            vec!["FRA: F bre", "FRA: A par","FRA: A mos", "FRA: A bur"]
                 .into_iter()
                 .map(|str | str.to_string())
                 .collect()

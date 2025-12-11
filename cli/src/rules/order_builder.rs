@@ -32,6 +32,10 @@ pub struct OrderBuilder {
     pub support_unit_type: Option<UnitType>,
     pub support_from: Option<RegionKey>,
     pub support_to: Option<RegionKey>,
+
+    // Convoy Crap 
+    pub convoy_from: Option<RegionKey>,
+    pub convoy_to: Option<RegionKey>,
 }
 
 impl OrderBuilder {
@@ -43,6 +47,8 @@ impl OrderBuilder {
             support_unit_type: None,
             support_from: None,
             support_to: None,
+            convoy_from: None,
+            convoy_to: None
         }
     }
 
@@ -112,6 +118,31 @@ impl OrderBuilder {
         };
 
         self.support_to = Some(region_key);
+        self
+    }
+
+    /// Specify which unit is being convoyed
+    pub fn convoy_unit(&mut self, unit: &str) -> &mut Self {
+        match unit.parse::<UnitPosition<RegionKey>>() {
+            Ok(pos) => {
+                self.convoy_from = Some(pos.region);
+            }
+            Err(_) => eprintln!("Invalid supported unit: {}", unit),
+        }
+        self
+    }
+
+    /// Specify where that unit is attempting to move
+    pub fn convoy_unit_to(&mut self, region: &str) -> &mut Self {
+        let region_key = match RegionKey::from_str(region) {
+            Ok(r) => r,
+            Err(_) => {
+                eprintln!("Invalid region: {}", region);
+                return self;
+            }
+        };
+
+        self.convoy_to = Some(region_key);
         self
     }
 

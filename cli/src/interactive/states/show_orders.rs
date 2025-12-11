@@ -4,6 +4,7 @@ use diplomacy::order::{MainCommand, MoveCommand};
 
 use crate::interactive::state_machine::{InputResult, MachineData, State};
 use crate::interactive::state_machine::StateMachine;
+use crate::interactive::states::convoy_sm::choose_unit_to_convoy::ChooseConvoyUnit;
 use crate::interactive::states::hold_sm::confirm_hold::ConfirmHold;
 use crate::interactive::states::move_sm::pick_move::PickMoveState;
 use crate::interactive::states::support_sm::choose_support_dest::ChooseSupportUnitState;
@@ -110,6 +111,7 @@ impl State for ShowOrders {
             PrintCommand::Move => {Box::new(PickMoveState::new())}
             PrintCommand::Hold => {Box::new(ConfirmHold::new())}
             PrintCommand::Support => {Box::new(ChooseSupportUnitState::new())}
+            PrintCommand::Convoy => {Box::new(ChooseConvoyUnit::new())}
             _ => {Box::new(TerminalState)}
         }
         

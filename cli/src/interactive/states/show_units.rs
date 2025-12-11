@@ -26,6 +26,11 @@ impl State for ShowUnitState {
     }
 
     fn handle_input(&mut self, input: &str, machine_data: &mut MachineData) -> Option<InputResult> {
+        // If completed go to the terminal and print all orders
+        if machine_data.units_remaining.is_empty() {
+            println!("Orders complete");
+            return Some(InputResult::Quit);
+        }
         match input.trim() {
             "q" => return Some(InputResult::Quit),
             "b" => return Some(InputResult::Continue), // update() will handle back

@@ -10,6 +10,7 @@ use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use diplomacy::geo::ProvinceKey;
 use diplomacy;
+use crate::interactive::states::convoy_sm::confirm_convoy::ConfirmConvoyMove;
 use crate::interactive::states::convoy_sm::convoy::{route_may_exist};
 use crate::interactive::{state_machine::{InputResult, MachineData, State, StateMachine}, states::terminal_state::TerminalState};
 
@@ -49,7 +50,7 @@ impl State for ChooseConvoyMove {
             // This will be an api call in the future
             let positions_owned: Vec<UnitPosition<RegionKey>> = vec![
                 "FRA: F eng",
-                "FRA: F bre",]
+                "FRA: F nth",]
                 .iter()
                 .map(|&str| str.parse::<UnitPosition<RegionKey>>()
                 .unwrap())
@@ -111,7 +112,7 @@ impl State for ChooseConvoyMove {
     }
 
     fn next(self: Box<Self>, state_machine:&mut StateMachine) -> Box<dyn State> {
-        Box::new(TerminalState)
+        Box::new(ConfirmConvoyMove::new())
     }
 
     fn is_terminal(&self) -> bool {

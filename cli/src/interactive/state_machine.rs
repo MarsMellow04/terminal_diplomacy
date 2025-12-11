@@ -1,5 +1,5 @@
 use diplomacy::{UnitPosition, judge::MappedMainOrder, order::MainCommand};
-use crate::{interactive::states::terminal_state::TerminalState, rules::order_builder::OrderBuilder};
+use crate::{interactive::states::{show_orders::SupportType, terminal_state::TerminalState}, rules::order_builder::OrderBuilder};
 use super::states::show_orders::PrintCommand;
 
 pub trait State {
@@ -31,7 +31,8 @@ pub struct MachineData {
     pub orders: Vec<MappedMainOrder>,
     pub selected_order: Option<PrintCommand>,
     pub selected_destination: Option<String>,
-    pub current_order: OrderBuilder
+    pub current_order: OrderBuilder,
+    pub selected_support: Option<SupportType>
 }
 
 impl StateMachine {
@@ -44,7 +45,8 @@ impl StateMachine {
                 orders: vec![],
                 selected_order: None,
                 selected_destination: None,
-                current_order: OrderBuilder::new()
+                current_order: OrderBuilder::new(),
+                selected_support: None
 
             },
             state: inital_state,

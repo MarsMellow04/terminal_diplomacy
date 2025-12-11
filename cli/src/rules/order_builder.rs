@@ -4,7 +4,7 @@ use diplomacy::{
     UnitType,
     geo::RegionKey,
     judge::MappedMainOrder,
-    order::{MainCommand, MoveCommand, SupportedOrder},
+    order::{ConvoyedMove, MainCommand, MoveCommand, SupportedOrder},
 };
 use std::str::FromStr;
 
@@ -155,15 +155,31 @@ impl OrderBuilder {
             .ok_or(OrderBuildError::MissingUnitPosition)?;
 
         // If it's a support move, build the SupportedOrder first
-        if self.support_unit_type.is_some() {
+        if self.support_to.is_some() {
             let cmd = MainCommand::Support(
                 SupportedOrder::Move(
-                    self.support_unit_type.take().expect("Thsi should have soemthing"),
-                    self.support_from.take().expect("support_from should be set"),
+                    self.support_unit_type.take().expect("This support should be set"), 
+                    self.support_from.take().expect("MEEEPMOOO"),
                     self.support_to.take().expect("support_to should be set"),
                 )
             );
             self.command = Some(cmd);
+        } else if  self.support_from.is_some() {
+            let cmd = MainCommand::Support(
+                SupportedOrder::Hold(
+                    self.support_unit_type.take().expect("Thsi should have soemthing"),
+                    self.support_from.take().expect("support_from should be set"),
+                )
+            );
+            self.command = Some(cmd);
+        }
+        if self.convoy_from.is_some() {
+            let cmd =  MainCommand::Convoy(
+                ConvoyedMove::new(
+                    self.convoy_from.take().expect("Meep"), 
+                    self.convoy_to.take().expect("Meow"))
+            );
+            self.command = Some(cmd)
         }
 
         let command = self.command.clone()

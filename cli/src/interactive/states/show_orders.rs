@@ -8,11 +8,18 @@ use crate::interactive::states::convoy_sm::choose_unit_to_convoy::ChooseConvoyUn
 use crate::interactive::states::hold_sm::confirm_hold::ConfirmHold;
 use crate::interactive::states::move_sm::pick_move::PickMoveState;
 use crate::interactive::states::support_sm::choose_support_dest::ChooseSupportUnitState;
+use crate::interactive::states::support_sm::sleect_support_type::SelectSupportTypeState;
 use crate::interactive::states::terminal_state::TerminalState;
 use std::fmt::{self, Display, Formatter};
 
 use num_enum::TryFromPrimitive;
 
+
+
+pub enum SupportType {
+    SupportHold,
+    SupportMove,
+}
 #[derive(TryFromPrimitive)]
 #[repr(usize)]
 pub enum  PrintCommand {
@@ -35,20 +42,20 @@ impl Display for PrintCommand {
     }
 }
 
-fn get_possible_commands(unit_type: UnitType ) -> Vec<PrintCommand>{
+fn get_possible_commands(unit_type: UnitType ) -> Vec<PrintCommand> {
     match unit_type {
-            UnitType::Army => {vec![
-                PrintCommand::Hold, 
-                PrintCommand::Support,
-                PrintCommand::Move]
-            }
-            UnitType::Fleet => {vec![
-                PrintCommand::Hold,
-                PrintCommand::Support,
-                PrintCommand::Move,
-                PrintCommand::Convoy]
-            }
-        }
+        UnitType::Army => vec![
+            PrintCommand::Hold,
+            PrintCommand::Support,
+            PrintCommand::Move,
+        ],
+        UnitType::Fleet => vec![
+            PrintCommand::Hold,
+            PrintCommand::Support,
+            PrintCommand::Move,
+            PrintCommand::Convoy,
+        ],
+    }
 }
 
 pub struct ShowOrders {
@@ -108,13 +115,11 @@ impl State for ShowOrders {
     fn next(self: Box<Self>, machine: &mut StateMachine) -> Box<dyn State> {
         machine.data.selected_order = self.selected_order;
         match machine.data.selected_order.as_ref().unwrap() {
-            PrintCommand::Move => {Box::new(PickMoveState::new())}
-            PrintCommand::Hold => {Box::new(ConfirmHold::new())}
-            PrintCommand::Support => {Box::new(ChooseSupportUnitState::new())}
-            PrintCommand::Convoy => {Box::new(ChooseConvoyUnit::new())}
-            _ => {Box::new(TerminalState)}
+            PrintCommand::Move    => Box::new(PickMoveState::new()),
+            PrintCommand::Hold    => Box::new(ConfirmHold::new()),
+            PrintCommand::Support => Box::new(SelectSupportTypeState::new()),
+            PrintCommand::Convoy  => Box::new(ChooseConvoyUnit::new()),
         }
-        
     }
 
     fn is_terminal(&self) -> bool {

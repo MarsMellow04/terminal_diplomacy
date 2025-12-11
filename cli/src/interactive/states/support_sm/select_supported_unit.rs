@@ -2,7 +2,7 @@ use std::result;
 
 use diplomacy::{UnitPosition, geo::{Map, RegionKey, standard_map}, judge::Submission};
 
-use crate::interactive::{state_machine::{InputResult, State, StateMachine}, states::terminal_state::TerminalState};
+use crate::interactive::{state_machine::{InputResult, State, StateMachine}, states::{support_sm::confirm_support::ConfirmSupport, terminal_state::TerminalState}};
 use diplomacy::judge::MappedMainOrder;
 use diplomacy::judge::Rulebook;
 use diplomacy::judge::{OrderOutcome,AttackOutcome};
@@ -67,7 +67,8 @@ impl State for SelectSupportedUnitState {
                     Ok(choice) => {
                         println!("Selected: {}", choice);
                         machine_data.current_order.support_unit(&choice);
-                        println!("{:?} and {:?}", machine_data.current_order.support_from, machine_data.current_order.support_unit_type)
+                        println!("{:?} and {:?}", machine_data.current_order.support_from, machine_data.current_order.support_unit_type);
+                        return Some(InputResult::Advance);
                     }
                     Err(_) => println!("Selection cancelled"),
                 }
@@ -76,11 +77,11 @@ impl State for SelectSupportedUnitState {
             };
 
         }
-        None
+        Some(InputResult::Quit)
     }
 
     fn next(self: Box<Self>, state_machine:&mut StateMachine) -> Box<dyn State> {
-        Box::new(TerminalState)
+        Box::new(ConfirmSupport::new())
     }
 
     fn is_terminal(&self) -> bool {

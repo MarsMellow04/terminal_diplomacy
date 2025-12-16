@@ -6,7 +6,8 @@ use diplomacy::judge::{Rulebook, Submission, MappedMainOrder};
 use diplomacy::geo::{Map, Terrain, standard_map};
 use serde::Deserialize;
 use serde_json::{json};
-use std::collections::BTreeMap; // <-- correct map type for string->string JSON
+use std::collections::BTreeMap;
+use std::net::TcpStream; // <-- correct map type for string->string JSON
 
 use crate::interactive::state_machine::StateMachine;
 
@@ -27,11 +28,12 @@ struct MovesJson {
 #[derive(Default)]
 pub struct OrderCommand {
     name: Option<String>,
+    game_id: String
 }
 
 impl OrderCommand {
-    pub fn new(name: Option<String>) -> Self {
-        Self { name }
+    pub fn new(name: Option<String>, game_id: String) -> Self {
+        Self { name, game_id }
     }
 
     fn parse_flags(&self) -> Option<String> {
@@ -73,6 +75,19 @@ impl Command for OrderCommand {
 
         // The Mahcine is finished
         println!("Final orders = {:?}", machine.data.orders);
+
+        // Now we can start fixing up this part 
+        let host = String::from("127.0.0.1");
+        let port = String::from("8080");
+        let formatted_address = format!("{}:{}", host, port);
+        let mut stream = TcpStream::connect(formatted_address).expect("Failed to connect");
+        // JOIN;GAME_ID\n
+        let json = serde_json::to_string(&machine.data.orders).expect("This should work");
+        let formatted_message = format!("ORDER;MAIN;{};{}",json,self.game_id);
+        let join_message = formatted_message.as_bytes();
+        stream.write(join_message).expect("Failed to write the message");
         true
+
+
     }
 }

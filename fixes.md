@@ -1,0 +1,2 @@
+- [ ] Make clear erros on the server side with clear erros
+- [ ] Fix how we send orders, nto the stupid string thing but proper json orders

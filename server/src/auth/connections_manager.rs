@@ -1,11 +1,12 @@
 use crate::data::connection_pool::ConnectionPool;
+use crate::order::order_service::OrderService;
 use std::sync::Arc;
 
 use crate::data::user::{Entity as User, Column as UserColumn, Model as UserModel, ActiveModel as ActiveUserModel};
-use crate::data::game::{Entity as Game, Column as GameColumn, Model as GameModel, ActiveModel as ActiveGameModel};
+use crate::data::game::{self, ActiveModel as ActiveGameModel, Column as GameColumn, Entity as Game, Model as GameModel};
 use sea_orm::{EntityTrait, ColumnTrait, QueryFilter};
 use sea_orm::DbErr;
-use uuid::{uuid,Uuid};
+use uuid::{Uuid};
 
 
 // for adding
@@ -18,12 +19,13 @@ use crate::game::game_service::{self, GameService};
 
 pub struct ConnectionsManager {
     pool: Arc<ConnectionPool>, // This in teh future should just be replaced with the proper srvices
-    game_service: Arc<GameService>
+    game_service: Arc<GameService>,
+    order_service: Arc<OrderService>
 }
 
 impl ConnectionsManager {
-    pub fn new(pool: Arc<ConnectionPool>, game_service: Arc<GameService>) -> Self {
-        Self { pool, game_service }
+    pub fn new(pool: Arc<ConnectionPool>, game_service: Arc<GameService>, order_service: Arc<OrderService>) -> Self {
+        Self { pool, game_service, order_service }
     }
 
     pub async fn handle_login(&self, username: String, password: String) -> Result<Option<UserModel>, sea_orm::DbErr> {
@@ -54,8 +56,8 @@ impl ConnectionsManager {
 
         user_model.insert(conn).await?;
         Ok(())
+    }
 
-}
     pub async fn handle_join(&self, game_str: &str ) {
         let game_id = match Uuid::parse_str(game_str) {
             Ok(id) => id,
@@ -82,6 +84,29 @@ impl ConnectionsManager {
                 println!("Game created: {}", game_id)
             }
         }
+    }
+
+    pub async fn handle_order_submission(&self, order_str: &str, game_str: &str) {
+        // Time being just making a fake user id:
+        let user_id = Uuid::new_v4();
+        let Ok(game_id) = Uuid::parse_str(game_str) else {
+            eprintln!("game_id parsed is not a uuid");
+            return;
+        };
+
+        // Parse the order_str 
+        let Ok(orders) = serde_json::from_str(order_str) else {
+            eprintln!("orders failed to be parse");
+            return;
+        };
+        
+        match self.order_service.send_order(user_id, orders, &game_id).await {
+            Ok(()) => {println!("Game joined succesffully ");}
+            Err(e) => {
+                println!("lol not dealing with this {e}");
+                return;
+            }
+        };
     }
 } 
 

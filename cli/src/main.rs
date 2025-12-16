@@ -70,6 +70,9 @@ enum Commands {
     Order {
         #[arg(short, long, required = false)]
         name: String,
+
+        #[arg(short, long, required = true)]
+        game: String,
     },
     /// Showcase the map of the game
     Map {
@@ -94,7 +97,7 @@ impl Commands {
             Commands::Connect { host, port } => Box::new(ConnectCommand::new(host, port)),
             Commands::Login { username, password } => Box::new(LoginCommand::new(username, password)),
             Commands::Join { game } => Box::new(JoinCommand::new(game)),
-            Commands::Order { name } => Box::new(OrderCommand::new(Some(name))),
+            Commands::Order { name , game} => Box::new(OrderCommand::new(Some(name), game)),
             Commands::Map {save_image} => Box::new(MapCommand::new(save_image)),
             Commands::Register { username, password } => Box::new(RegisterCommand::new(username, password)),
             Commands::Create {  } => Box::new(CreateCommand::new())

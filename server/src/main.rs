@@ -17,9 +17,14 @@ use auth::connections_manager::ConnectionsManager;
 // Use this for the game stuff
 pub mod game;
 
+//Use this for the order stuff
+pub mod order;
+
 use crate::data::user;
 use crate::game::game_repository::GameRepository;
 use crate::game::game_service::{self, GameService};
+use crate::order::order_repository::OrderRepository;
+use crate::order::order_service::{self, OrderService};
 
 async fn handle_client(mut stream: TcpStream, cm: Arc<ConnectionsManager>) -> Result<(), Box<dyn Error>> {
     // Create a buffer
@@ -74,6 +79,11 @@ async fn handle_client(mut stream: TcpStream, cm: Arc<ConnectionsManager>) -> Re
         "CREATE" => {
             cm.handle_create().await;
         }
+        "ORDER" => {
+            let order_str = data[2].clone();
+            let game_str = data[3].clone();
+            cm.handle_order_submission(&order_str, &game_str).await;
+        }
         _ => {
             eprintln!("Malformed login message");
             return Err("Malformed login message".into());
@@ -94,8 +104,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     const CONNECTION_STRING: &str = "postgresql://postgres:mysecretpassword@localhost:5433/postgres";
     let pool = Arc::new(ConnectionPool::connect(CONNECTION_STRING).await);
     let game_repo = Arc::new(GameRepository::new(pool.clone()));
+    let order_repo = Arc::new(OrderRepository::new(pool.clone()));
     let game_service:Arc<GameService> = Arc::new(GameService::new(game_repo));
-    let cm = Arc::new(ConnectionsManager::new(pool, game_service));
+    let order_service: Arc<OrderService> = Arc::new(OrderService::new(order_repo));
+    let cm = Arc::new(ConnectionsManager::new(pool, game_service, order_service));
 
     let listener = TcpListener::bind("127.0.0.1:8080").await?;
     println!("Server listening on 127.0.0.1:8080");

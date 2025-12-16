@@ -14,3 +14,5 @@ common = { path = "../common" }
 # This is used to create unique identifies for games
 uuid = { version = "1", features = ["v4"] }
 once_cell = "1.19"
+diplomacy = { version = "0.2.0", features = ["serde"] }
+serde_json = "1.0.145"

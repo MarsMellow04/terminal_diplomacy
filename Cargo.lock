@@ -642,6 +642,7 @@ dependencies = [
  "from_variants",
  "lazy_static",
  "petgraph",
+ "serde",
 ]
 
 [[package]]
@@ -2236,9 +2237,11 @@ name = "server"
 version = "0.1.0"
 dependencies = [
  "common",
+ "diplomacy",
  "once_cell",
  "postgres",
  "sea-orm",
+ "serde_json",
  "time",
  "tokio",
  "uuid",

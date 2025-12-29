@@ -1,27 +1,26 @@
-use crate::Command;
-use std::{io::Write, net::TcpStream};
+use crate::auth::session::SessionKeeper;
+use crate::commands::util::{Command, Client, CommandError};
 
 #[derive(Default)]
-pub struct CreateCommand {
+pub struct CreateCommand<C: Client, S: SessionKeeper> {
+    pub client: C,
+    session: S
 }
 
-impl CreateCommand {
-    pub fn new() -> Self {
-        Self {}
+impl <C: Client, S: SessionKeeper> CreateCommand<C, S> {
+    pub fn new(client: C, session: S) -> Self {
+        Self { client, session}
     }
 }
 
-impl Command for CreateCommand {
-    fn execute(&self) -> bool{
-        // attempt to join a game
-        let host = String::from("127.0.0.1");
-        let port = String::from("8080");
-        let formatted_address = format!("{}:{}", host, port);
-        let mut stream = TcpStream::connect(formatted_address).expect("Failed to connect");
-        // JOIN;GAME_ID\n
-        let formatted_message = String::from("CREATE;");
-        let join_message = formatted_message.as_bytes();
-        stream.write(join_message).expect("Failed to write the message");
-        true
+impl <C: Client, S: SessionKeeper> CreateCommand<C, S> {
+    pub fn execute(&mut self) -> Result<(), CommandError>{
+        let session_token = self
+            .session
+            .load()
+            .ok_or(CommandError::NoSessionToken)?;
+        // CREATE;session_id\n
+        let msg = format!("CREATE;{session_token}\n");
+        self.client.send(&msg)
     }
 }

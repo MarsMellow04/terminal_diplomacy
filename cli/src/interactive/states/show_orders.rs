@@ -1,124 +1,69 @@
-use diplomacy::{Unit,UnitPosition, UnitType};
-use diplomacy::geo::RegionKey;
-use diplomacy::order::{MainCommand, MoveCommand};
-
-use crate::interactive::state_machine::{InputResult, MachineData, State};
-use crate::interactive::state_machine::StateMachine;
-use crate::interactive::states::convoy_sm::choose_unit_to_convoy::ChooseConvoyUnit;
+use diplomacy::{UnitType};
+use crate::interactive::state_machine::{InputResult, MachineData, OrderDraft, OrderKind, State, UiState};
+use crate::interactive::states::convoy_sm::choose_destination_of_convoy::ChooseConvoyMove;
 use crate::interactive::states::hold_sm::confirm_hold::ConfirmHold;
 use crate::interactive::states::move_sm::pick_move::PickMoveState;
 use crate::interactive::states::support_sm::choose_support_dest::ChooseSupportUnitState;
-use crate::interactive::states::support_sm::sleect_support_type::SelectSupportTypeState;
-use crate::interactive::states::terminal_state::TerminalState;
-use std::fmt::{self, Display, Formatter};
+use crate::interactive::states::support_sm::select_unit_to_support::SelectHoldToSupport;
+use crate::interactive::util::{SelectResult,select_from};
 
-use num_enum::TryFromPrimitive;
-
-
-
-pub enum SupportType {
-    SupportHold,
-    SupportMove,
-}
-#[derive(TryFromPrimitive)]
-#[repr(usize)]
-pub enum  PrintCommand {
-   Hold,
-   Support,
-   Move,
-   Convoy
-}
-
-impl Display for PrintCommand {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let text = match self {
-            PrintCommand::Hold    => "Hold",
-            PrintCommand::Support => "Support",
-            PrintCommand::Move    => "Move",
-            PrintCommand::Convoy  => "Convoy",
-        };
-
-        write!(f, "{text}")
-    }
-}
-
-fn get_possible_commands(unit_type: UnitType ) -> Vec<PrintCommand> {
-    match unit_type {
-        UnitType::Army => vec![
-            PrintCommand::Hold,
-            PrintCommand::Support,
-            PrintCommand::Move,
-        ],
-        UnitType::Fleet => vec![
-            PrintCommand::Hold,
-            PrintCommand::Support,
-            PrintCommand::Move,
-            PrintCommand::Convoy,
-        ],
-    }
-}
-
-pub struct ShowOrders {
-    given_unit_pos: String,
-    possible_commands: Vec<PrintCommand>,
-    selected_order: Option<PrintCommand>
-}
-
-impl ShowOrders {
-    pub fn new(given_unit_pos: String) -> Self {
-        Self { 
-            given_unit_pos, 
-            possible_commands: vec![],
-            selected_order: None
+fn find_possible_orders(unit_type: UnitType) -> Vec<OrderKind>{
+        match unit_type {
+            UnitType::Army => {
+                vec! [ 
+                    OrderKind::Hold,
+                    OrderKind::Move, 
+                    OrderKind::SupportHold,
+                    OrderKind::SupportMove,
+                ]
+            }
+            UnitType::Fleet => {
+                vec! [
+                    OrderKind::Hold,
+                    OrderKind::Move, 
+                    OrderKind::SupportHold,
+                    OrderKind::SupportMove,
+                    OrderKind::Convoy,
+                ]
+            }
         }
     }
-}
+
+#[derive(Clone, PartialEq)]
+pub struct ShowOrders;
 
 impl State for ShowOrders {
-    fn render(&self,  _machine: &StateMachine) {
-        // What we need to do now is make it that depending on the unit_type given
-        let unit_type:UnitType = self.given_unit_pos
-            .parse::<UnitPosition<'_, RegionKey>>()
-            .unwrap()
-            .unit
-            .unit_type();
+    fn render(&self, data: &MachineData) {
+        let unit_at = data.selected_unit.clone().unwrap();
+        println!("\nSelected unit {:?}:", unit_at);
+    }
 
-        let possible_commands: Vec<PrintCommand> = get_possible_commands(unit_type);
-        println!("\nEnter a number or 'q' to quit:");
-        println!("\n\n Pick a order: \n\n");
-        for (i, command) in possible_commands.iter().enumerate() {
-            println!("{} ) {}", i + 1, command);
+    fn handle_input(&mut self, _input: &str, data: &mut MachineData, _ctx: &crate::rules::game_context::GameContext) -> InputResult {
+        let unit = data.selected_unit.clone().unwrap();
+        let unit_type = unit.unit.unit_type();
+
+        let possible_orders = find_possible_orders(unit_type);
+        match select_from("Select command: ", &possible_orders) {
+            SelectResult::Selected(order_kind) => {
+                data.order_draft = Some(OrderDraft { 
+                    kind: Some(order_kind), 
+                    move_to: None, 
+                    support_target: None
+                });
+                InputResult::Advance
+            }
+            SelectResult::Back => {InputResult::Back}
+            SelectResult::Quit => {InputResult::Quit}
         }
     }
 
-    fn handle_input(&mut self, input: &str, _machine_data: &mut MachineData) -> Option<InputResult> {
-        match input.trim() {
-            "q" => return Some(InputResult::Quit),
-            "b" => return Some(InputResult::Continue), 
-            _ => {}
-        }
-        let unit_type:UnitType = self.given_unit_pos
-            .parse::<UnitPosition<'_, RegionKey>>()
-            .unwrap()
-            .unit
-            .unit_type();
-        self.possible_commands = get_possible_commands(unit_type);
-        let index = match input.parse::<usize>() {
-            Ok(n) if n > 0 && n <= self.possible_commands.len() => n - 1,
-            _ => return Some(InputResult::Continue),
-        };
-        self.selected_order = Some(PrintCommand::try_from_primitive(index).expect("Should be good"));
-        Some(InputResult::Advance)
-
-    }
-
-    fn next(self: Box<Self>, machine: &mut StateMachine) -> Box<dyn State> {
-        machine.data.selected_order = self.selected_order;
-        match machine.data.selected_order.as_ref().unwrap() {
-            PrintCommand::Move    => Box::new(PickMoveState::new()),
-            PrintCommand::Hold    => Box::new(ConfirmHold::new()),
-            PrintCommand::Support => Box::new(SelectSupportTypeState::new()),
-            PrintCommand::Convoy  => Box::new(ChooseConvoyUnit::new()),
+    fn next(self, machine_data: &mut MachineData) -> crate::interactive::state_machine::UiState {
+        match machine_data.order_draft.clone().unwrap().kind.unwrap() {
+            OrderKind::Convoy => UiState::ShowConvoyDestination(ChooseConvoyMove),
+            OrderKind::Hold => UiState::ConfimHold(ConfirmHold),
+            OrderKind::Move => UiState::ShowMoves(PickMoveState),
+            OrderKind::SupportHold => UiState::SelectSupportedUnit(SelectHoldToSupport),
+            OrderKind::SupportMove => UiState::SelectSupportedDestination(ChooseSupportUnitState),
         }
     }
 

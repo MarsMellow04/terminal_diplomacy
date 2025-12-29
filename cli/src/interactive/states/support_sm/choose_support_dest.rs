@@ -9,15 +9,8 @@ use diplomacy::judge::{Adjudicate, AttackOutcome, Context, MappedMainOrder, Orde
 use diplomacy::order::{MainCommand, MoveCommand};
 use diplomacy::*;
 
-pub struct ChooseSupportUnitState {
-}
-
-impl ChooseSupportUnitState {
-    pub fn new() -> Self {
-        Self {
-        }
-    }
-}
+#[derive(Clone, PartialEq)]
+pub struct ChooseSupportUnitState;
 
 impl State for ChooseSupportUnitState {
     fn render(&self, machine: &StateMachine) {

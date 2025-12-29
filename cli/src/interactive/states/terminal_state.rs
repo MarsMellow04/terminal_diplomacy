@@ -3,6 +3,7 @@ use crate::interactive::state_machine::MachineData;
 use crate::interactive::state_machine::State;
 use crate::interactive::state_machine::StateMachine;
 
+#[derive(Clone, PartialEq)]
 pub struct TerminalState;
 
 impl State for TerminalState {

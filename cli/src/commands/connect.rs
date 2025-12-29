@@ -1,4 +1,4 @@
-use crate::Command;
+use crate::commands::util::Command;
 use std::{io::Write, net::TcpStream};
 
 #[derive(Default)]

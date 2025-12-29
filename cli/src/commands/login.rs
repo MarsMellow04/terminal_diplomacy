@@ -1,28 +1,31 @@
-use crate::Command;
-use std::{io::Write, net::TcpStream};
+use uuid::Uuid;
+
+use crate::{auth::session::SessionKeeper, commands::util::{Client, Command, CommandError}};
 
 #[derive(Default)]
-pub struct LoginCommand {
+pub struct LoginCommand <C: Client, S: SessionKeeper>{
+    pub client: C,
+    session: S,
     username: String,
     password: String,
 }
 
-impl LoginCommand {
-    pub fn new(username: String, password: String) -> Self {
-        Self { username, password }
+impl <C: Client, S: SessionKeeper> LoginCommand<C,S>{
+    pub fn new(client: C, session: S, username: String, password: String) -> Self {
+        Self { client, session, username, password }
     }
 }
 
-impl Command for LoginCommand {
-    fn execute(&self) -> bool{
-        let host = String::from("127.0.0.1");
-        let port = String::from("8080");
-        let formatted_address = format!("{}:{}", host, port);
-        let mut stream = TcpStream::connect(formatted_address).expect("Failed to connect");
-        // LOGIN;USERNAME;PASSWORD_HASH\n
-        let formatted_message = format!("LOGIN;{};{}", self.username,self.password);
-        let login_message = formatted_message.as_bytes();
-        stream.write(login_message).expect("Failed to write the message");
-        true
+impl <C: Client, S: SessionKeeper> LoginCommand<C,S>{
+    pub fn execute(&mut self) -> Result<(), CommandError>{
+        // LOGIN;<username>;<password>\n
+        let msg = format!("LOGIN;{};{}\n", self.username,self.password);
+        self.client.send(&msg)?;
+        let session_token = Uuid::parse_str(&self.client.read()?)
+            .or(Err(CommandError::NoSessionToken))?;
+
+        self.session.save(&session_token)
+            .or(Err(CommandError::SessionSaveFailed))?;
+        Ok(())
     }
 }

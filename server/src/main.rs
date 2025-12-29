@@ -2,7 +2,8 @@ use std::error::Error;
 use std::io::{Read, Write};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use std::sync::Arc;
+use std::sync::{Arc};
+use tokio::sync::RwLock;
 
 // Data contains helper functions related to connecting or adding/deteleting for the db
 mod data;
@@ -20,6 +21,7 @@ pub mod game;
 //Use this for the order stuff
 pub mod order;
 
+use crate::auth::session::InMemoryStore;
 use crate::data::user;
 use crate::game::game_repository::GameRepository;
 use crate::game::game_service::{self, GameService};
@@ -71,30 +73,31 @@ async fn handle_client(mut stream: TcpStream, cm: Arc<ConnectionsManager>) -> Re
             let username = data[1].clone();
             let password = data[2].clone();
             let query_result = cm.handle_registration(username, password).await?;
+            // Need to figure out how to print this back
+            let uuid_str = query_result.to_string();
+
+            println!("This is what teh sesssion id should look like: {uuid_str}");
+            stream.write_all(uuid_str.as_bytes()).await?;
+            stream.write_all(b"\n").await?;
+
         }
-        "JOIN" => {
-            let game_id =  data[1].clone();
-            cm.handle_join(&game_id).await;
-        }
-        "CREATE" => {
-            cm.handle_create().await;
-        }
-        "ORDER" => {
-            let order_str = data[2].clone();
-            let game_str = data[3].clone();
-            cm.handle_order_submission(&order_str, &game_str).await;
-        }
+        // "JOIN" => {
+        //     let game_id =  data[1].clone();
+        //     cm.handle_join(&game_id).await;
+        // }
+        // "CREATE" => {
+        //     cm.handle_create().await;
+        // }
+        // "ORDER" => {
+        //     let order_str = data[2].clone();
+        //     let game_str = data[3].clone();
+        //     cm.handle_order_submission(&order_str, &game_str).await;
+        // }
         _ => {
             eprintln!("Malformed login message");
             return Err("Malformed login message".into());
         }
     };
-
-    let response = b"Hello Client!";
-    if let Err(e) = stream.write_all(response).await {
-        eprintln!("Error writing response: {:?}", e);
-        return Err(Box::new(e));
-    }
 
     Ok(())
 }
@@ -107,7 +110,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     let order_repo = Arc::new(OrderRepository::new(pool.clone()));
     let game_service:Arc<GameService> = Arc::new(GameService::new(game_repo));
     let order_service: Arc<OrderService> = Arc::new(OrderService::new(order_repo));
-    let cm = Arc::new(ConnectionsManager::new(pool, game_service, order_service));
+    let session_store = Arc::new(RwLock::new(InMemoryStore::new()));
+    let cm = Arc::new(ConnectionsManager::new(pool, session_store, game_service, order_service));
 
     let listener = TcpListener::bind("127.0.0.1:8080").await?;
     println!("Server listening on 127.0.0.1:8080");

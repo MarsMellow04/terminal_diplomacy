@@ -13,19 +13,26 @@ use uuid::{Uuid};
 use sea_orm::{ActiveModelTrait, ActiveValue::NotSet, Database, DatabaseConnection, Set};
 use common::hash::hash_password;
 use common::hash::verify_password;
+use crate::auth::session::SessionStore;
+
+use once_cell::sync::Lazy;
+use tokio::sync::RwLock;
 
 // Adding stuff for game manager 
 use crate::game::game_service::{self, GameService};
 
+pub type SharedSessionStore = Arc<RwLock<dyn SessionStore>>;
+
 pub struct ConnectionsManager {
     pool: Arc<ConnectionPool>, // This in teh future should just be replaced with the proper srvices
+    session_store: SharedSessionStore,
     game_service: Arc<GameService>,
     order_service: Arc<OrderService>
 }
 
 impl ConnectionsManager {
-    pub fn new(pool: Arc<ConnectionPool>, game_service: Arc<GameService>, order_service: Arc<OrderService>) -> Self {
-        Self { pool, game_service, order_service }
+    pub fn new(pool: Arc<ConnectionPool>, session_store: SharedSessionStore, game_service: Arc<GameService>, order_service: Arc<OrderService>) -> Self {
+        Self { pool, session_store, game_service, order_service }
     }
 
     pub async fn handle_login(&self, username: String, password: String) -> Result<Option<UserModel>, sea_orm::DbErr> {
@@ -44,9 +51,10 @@ impl ConnectionsManager {
     }
 
    
-    pub async fn handle_registration(&self, username: String, password: String) -> Result<(), sea_orm::DbErr> {
+    pub async fn handle_registration(&self, username: String, password: String) -> Result<Uuid, sea_orm::DbErr> {
         let conn = self.pool.get_connection();
         let hashed_password = hash_password(&password);
+        let user = Uuid::new_v4();
         let user_model = ActiveUserModel {
             user_id: NotSet,
             username: Set(username),
@@ -55,10 +63,14 @@ impl ConnectionsManager {
         };
 
         user_model.insert(conn).await?;
-        Ok(())
+
+        // Create the session for the user 
+        let mut session_store = self.session_store.write().await;
+        let res = session_store.create(user);
+        Ok(res)
     }
 
-    pub async fn handle_join(&self, game_str: &str ) {
+    pub async fn handle_join(&self, game_str: &str, session_id: Uuid ) {
         let game_id = match Uuid::parse_str(game_str) {
             Ok(id) => id,
             Err(e) => {
@@ -67,32 +79,35 @@ impl ConnectionsManager {
             }
         };
 
-        // Time being just making a fake user id:
-        let user_id = Uuid::new_v4();
-        match self.game_service.join_game( &game_id,user_id ).await {
+        // The time is now! From the message it sends over the session:
+        let mut session_store = self.session_store.write().await;
+        let user_session = session_store.get_mut(&session_id).expect("Something has gone wrong and the session is not found");
+        
+        match self.game_service.join_game( &game_id,user_session.user ).await {
             Ok(()) => {println!("Game joined succesffully ");}
             Err(e) => {
                 println!("lol not dealing with this {e}");
                 return;
             }
         }
+
+        user_session.current_game = Some(game_id);
     }
 
-    pub async fn handle_create(&self) {
-        match self.game_service.create_game().await {
-            game_id => {
-                println!("Game created: {}", game_id)
-            }
-        }
+    pub async fn handle_create(&self, session_id: Uuid) {
+        let game_id = self.game_service.create_game().await;
+        // UAtomatically add the user to the game 
+        let mut session_store = self.session_store.write().await;
+        let user_session = session_store.get_mut(&session_id).expect("Something has gone wrong and the session is not found");
+        user_session.current_game = Some(game_id);
     }
 
-    pub async fn handle_order_submission(&self, order_str: &str, game_str: &str) {
+    pub async fn handle_order_submission(&self, order_str: &str, session_id: Uuid) {
         // Time being just making a fake user id:
-        let user_id = Uuid::new_v4();
-        let Ok(game_id) = Uuid::parse_str(game_str) else {
-            eprintln!("game_id parsed is not a uuid");
-            return;
-        };
+        let session_store = self.session_store.read().await;
+        let user_session = session_store.get(&session_id).expect("Something has gone wrong and the session is not found");
+        let user_id = user_session.user;
+        let game_id = user_session.current_game.expect("To do this there needs to be. agme");
 
         // Parse the order_str 
         let Ok(orders) = serde_json::from_str(order_str) else {

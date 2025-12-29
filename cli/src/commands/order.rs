@@ -1,4 +1,5 @@
-use crate::Command;
+use crate::auth::session::SessionKeeper;
+use crate::commands::util::{Client, Command, CommandError};
 use crate::interactive::states::show_units::{self, ShowUnitState};
 use diplomacy::{ShortName, Unit, UnitPosition, UnitType};
 use diplomacy::{geo::RegionKey};
@@ -11,29 +12,17 @@ use std::net::TcpStream; // <-- correct map type for string->string JSON
 
 use crate::interactive::state_machine::StateMachine;
 
-pub enum GamePhase {
-    SpringMovement,
-    SpringRetreat,
-    FallMovement,
-    FallRetreat,
-    WinterBuild,
-}
-
-#[derive(Deserialize)]
-struct MovesJson {
-    edition: Option<String>,
-    orders: Vec<String>,
-}
-
 #[derive(Default)]
-pub struct OrderCommand {
+pub struct OrderCommand<C: Client, S: SessionKeeper>{
+    client: C, 
+    session: S,
     name: Option<String>,
     game_id: String
 }
 
-impl OrderCommand {
-    pub fn new(name: Option<String>, game_id: String) -> Self {
-        Self { name, game_id }
+impl <C: Client, S: SessionKeeper> OrderCommand<C,S> {
+    pub fn new(client: C, session: S, name: Option<String>, game_id: String) -> Self {
+        Self { client, session, name, game_id }
     }
 
     fn parse_flags(&self) -> Option<String> {
@@ -47,8 +36,8 @@ impl OrderCommand {
 
 }
 
-impl Command for OrderCommand {
-    fn execute(&self) -> bool {
+impl <C: Client, S: SessionKeeper> OrderCommand<C,S> {
+    pub fn execute(&mut self) -> Result<(), CommandError> {
         if self.parse_flags().is_some() {
             println!("Flags have been added! will skip interactive method")
         }
@@ -72,22 +61,18 @@ impl Command for OrderCommand {
             io::stdin().read_line(&mut input).unwrap();
             machine.update(input.trim());
         }
+        
+        let session_token = self
+            .session
+            .load()
+            .ok_or(CommandError::NoSessionToken)?;
 
-        // The Mahcine is finished
-        println!("Final orders = {:?}", machine.data.orders);
+        let Ok(orders) = serde_json::to_string(&machine.data.orders) else {
+            return Err(CommandError::WriteFailure)
+        };
 
-        // Now we can start fixing up this part 
-        let host = String::from("127.0.0.1");
-        let port = String::from("8080");
-        let formatted_address = format!("{}:{}", host, port);
-        let mut stream = TcpStream::connect(formatted_address).expect("Failed to connect");
-        // JOIN;GAME_ID\n
-        let json = serde_json::to_string(&machine.data.orders).expect("This should work");
-        let formatted_message = format!("ORDER;MAIN;{};{}",json,self.game_id);
-        let join_message = formatted_message.as_bytes();
-        stream.write(join_message).expect("Failed to write the message");
-        true
-
-
+        // JOIN;<session_id>;<orders>\n
+        let msg = format!("ORDER;MAIN;{};{}",session_token, orders);
+        self.client.send(&msg)
     }
 }

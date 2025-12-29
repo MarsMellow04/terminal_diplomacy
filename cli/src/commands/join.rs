@@ -1,28 +1,28 @@
-use crate::Command;
-use std::{io::Write, net::TcpStream};
+use crate::commands::util::{Client, Command, CommandError};
+use crate::auth::session::SessionKeeper;
 
 #[derive(Default)]
-pub struct JoinCommand {
-    game: String,
+pub struct JoinCommand<C: Client, S: SessionKeeper> {
+    pub client: C,
+    session: S,
+    game: String
 }
 
-impl JoinCommand {
-    pub fn new(game: String) -> Self {
-        Self { game }
+impl <C: Client, S: SessionKeeper> JoinCommand<C, S> {
+    pub fn new(client: C, session: S, game: String) -> Self {
+        Self { client, session, game}
     }
 }
 
-impl Command for JoinCommand {
-    fn execute(&self) -> bool{
-        // attempt to join a game
-        let host = String::from("127.0.0.1");
-        let port = String::from("8080");
-        let formatted_address = format!("{}:{}", host, port);
-        let mut stream = TcpStream::connect(formatted_address).expect("Failed to connect");
-        // JOIN;GAME_ID\n
-        let formatted_message = format!("JOIN;{}", self.game);
-        let join_message = formatted_message.as_bytes();
-        stream.write(join_message).expect("Failed to write the message");
-        true
+impl <C: Client, S: SessionKeeper > JoinCommand<C,S>{
+    pub fn execute(&mut self) -> Result<(), CommandError>{
+        let session_token = self
+            .session
+            .load()
+            .ok_or(CommandError::NoSessionToken)?;
+
+        // JOIN;GAME_ID;<session_id>;<join_id>\n
+        let msg = format!("JOIN;{};{}\n",session_token, self.game);
+        self.client.send(&msg)
     }
 }

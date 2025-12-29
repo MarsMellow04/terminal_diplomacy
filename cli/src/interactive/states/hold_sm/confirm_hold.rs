@@ -8,14 +8,8 @@ use crate::interactive::states::show_units::ShowUnitState;
 use crate::interactive::states::terminal_state::TerminalState;
 use crate::rules::order_builder::OrderBuilder;
 
-pub struct ConfirmHold {
-}
-
-impl ConfirmHold {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
+#[derive(Clone, PartialEq)]
+pub struct ConfirmHold;
 
 impl State for ConfirmHold {
     fn render(&self,  _machine: &StateMachine) {

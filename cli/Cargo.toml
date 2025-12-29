@@ -13,3 +13,7 @@ num_enum = "0.7"
 
 common = { path = "../common" }
 inquire = "0.9.1"
+dirs = "6.0.0"
+tokio = "1.48.0"
+uuid = { version = "1.0", features = ["v4"] }
+mockall = "0.14.0"

@@ -10,7 +10,7 @@ pub struct GameInstance {
     pub players: HashMap<UserId, Nation>,
     pub phase: Phase,
     map: Map,
-    last_owners: HashMap<ProvinceKey, Nation>,
+    last_owners: HashMap<ProvinceKey, Nation>, 
     occupiers: HashMap<ProvinceKey, Nation>,
     units: HashMap<Nation, HashSet<(UnitType, RegionKey)>>,
 }

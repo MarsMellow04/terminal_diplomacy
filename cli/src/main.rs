@@ -1,34 +1,19 @@
 use clap::{Parser, Subcommand};
+use cli::commands::util::Command;
 
 // Need it in main
-mod interactive;
-mod rules;
-
 
 // Command design structure:
 // This setup allows commands to be easily separated and reused.
 // Even if we later create a non-CLI version, the commands remain modular.
-mod commands {
-    pub mod connect;
-    pub mod login; 
-    pub mod join; 
-    pub mod order;
-    pub mod map;
-    pub mod register;
-    pub mod create;
-}
 
-pub use commands::connect::ConnectCommand;
-pub use commands::login::LoginCommand;
-pub use commands::join::JoinCommand;
-pub use commands::order::OrderCommand;
-pub use commands::map::MapCommand;
-pub use commands::register::RegisterCommand;
-pub use commands::create::CreateCommand;
-
-pub trait Command {
-    fn execute(&self) -> bool;
-}
+pub use cli::commands::connect::ConnectCommand;
+pub use cli::commands::login::LoginCommand;
+pub use cli::commands::join::JoinCommand;
+pub use cli::commands::order::OrderCommand;
+pub use cli::commands::map::MapCommand;
+pub use cli::commands::register::RegisterCommand;
+pub use cli::commands::create::CreateCommand;
 
 
 #[derive(Parser)]
@@ -53,41 +38,41 @@ enum Commands {
         #[arg(short, long, required = true)]
         port: String,
     },
-    /// Login to terminal diplomacy
-    Login {
-        #[arg(short, long, required = true)]
-        username: String,
+    // /// Login to terminal diplomacy
+    // Login {
+    //     #[arg(short, long, required = true)]
+    //     username: String,
 
-        #[arg(short, long, required = true)]
-        password: String,
-    },
-    /// Join a game of diplomacy
-    Join {
-        #[arg(short, long, required = true)]
-        game: String,
-    },
-    /// Submit order to game
-    Order {
-        #[arg(short, long, required = false)]
-        name: String,
+    //     #[arg(short, long, required = true)]
+    //     password: String,
+    // },
+    // Join a game of diplomacy
+    // Join {
+    //     #[arg(short, long, required = true)]
+    //     game: String,
+    // },
+    // Submit order to game
+    // Order {
+    //     #[arg(short, long, required = false)]
+    //     name: String,
 
-        #[arg(short, long, required = true)]
-        game: String,
-    },
-    /// Showcase the map of the game
-    Map {
-        save_image: bool
-    },
-    //// Register user 
-    Register {
-        #[arg(short, long, required = true)]
-        username: String,
+    //     #[arg(short, long, required = true)]
+    //     game: String,
+    // },
+    // Showcase the map of the game
+    // Map {
+    //     save_image: bool
+    // },
+    // //// Register user 
+    // Register {
+    //     #[arg(short, long, required = true)]
+    //     username: String,
 
-        #[arg(short, long, required = true)]
-        password: String,
-    },
-    /// Create a new Gaem
-    Create {}
+    //     #[arg(short, long, required = true)]
+    //     password: String,
+    // },
+    // /// Create a new Gaem
+    // Create {}
 }
 
 impl Commands {
@@ -95,12 +80,12 @@ impl Commands {
         match self {
             // We have to create a heap pointer, because of the different types
             Commands::Connect { host, port } => Box::new(ConnectCommand::new(host, port)),
-            Commands::Login { username, password } => Box::new(LoginCommand::new(username, password)),
-            Commands::Join { game } => Box::new(JoinCommand::new(game)),
-            Commands::Order { name , game} => Box::new(OrderCommand::new(Some(name), game)),
-            Commands::Map {save_image} => Box::new(MapCommand::new(save_image)),
-            Commands::Register { username, password } => Box::new(RegisterCommand::new(username, password)),
-            Commands::Create {  } => Box::new(CreateCommand::new())
+            // Commands::Login { username, password } => Box::new(LoginCommand::new(username, password)),
+            // Commands::Join { game } => Box::new(JoinCommand::new(game)),
+            // Commands::Order { name , game} => Box::new(OrderCommand::new(Some(name), game)),
+            // Commands::Map {save_image} => Box::new(MapCommand::new(save_image)),
+            // Commands::Register { username, password } => Box::new(RegisterCommand::new(username, password)),
+            // Commands::Create {  } => Box::new(CreateCommand::new())
         }
     }
 }

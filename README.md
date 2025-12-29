@@ -12,9 +12,4 @@ There is a Statemanchine for teh user to handle the creation of orders.
 
 There is also an order collector to to verify orders and collect them
 
-/// I need to be able to create session for users. 
-/// 
-/// If I have a session that changes, 
-///     when the user registers or logs in. The session store is used and is created 
-///     When the user disconnects from a game or connects to a game that is the game being dicussed
-///     
+There is session store that stores teh mutliple different sessions.

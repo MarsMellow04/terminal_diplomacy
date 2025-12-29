@@ -9,14 +9,8 @@ use diplomacy::UnitPosition;
 use diplomacy::geo::standard_map;
 use inquire::{InquireError, Select};
 
-pub struct SelectHoldToSupport {
-}
-
-impl SelectHoldToSupport {
-    pub fn new() -> Self {
-        Self { }
-    }
-}
+#[derive(Clone, PartialEq)]
+pub struct SelectHoldToSupport;
 
 impl State for SelectHoldToSupport {
     fn render(&self, state_machine: &StateMachine) {}

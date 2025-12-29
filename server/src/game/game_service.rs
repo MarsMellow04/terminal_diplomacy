@@ -63,20 +63,7 @@ impl GameService {
                 println!("Successfully joined game!");
             }
         };
-
-        // Db allocation for user I will do this once the users work properly
-        // let db_result = self.game_repo.inser_user_(game_id).await;
-        // match db_result {
-        //     Ok(()) => {
-        //         println!("Result is a success! Added to db");
-        //     }
-        //     Err(e) => {
-        //         eprintln!("Error failed to add to databse!: {e}");
-        //         registry.delete(&game_id);
-        //     }
-        // }
-
-
+        
         Ok(())
 
     }

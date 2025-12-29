@@ -15,17 +15,8 @@ use crate::interactive::states::convoy_sm::convoy::{route_may_exist};
 use crate::interactive::{state_machine::{InputResult, MachineData, State, StateMachine}, states::terminal_state::TerminalState};
 
 
-
-pub struct ChooseConvoyMove {
-
-}
-
-impl ChooseConvoyMove {
-    pub fn new() -> Self {
-        Self {  }
-    }
-}
-
+#[derive(Clone, PartialEq)]
+pub struct ChooseConvoyMove;
 struct CurrentWorldState {
 
 }

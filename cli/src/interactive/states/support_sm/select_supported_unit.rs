@@ -1,91 +1,100 @@
-use std::result;
+use diplomacy::{
+    UnitPosition,
+    geo::RegionKey,
+    judge::{MappedMainOrder, Rulebook, Submission, OrderOutcome, AttackOutcome},
+};
 
-use diplomacy::{UnitPosition, geo::{Map, RegionKey, standard_map}, judge::Submission};
+use crate::interactive::{state_machine::{InputResult, MachineData, OrderDraft, OrderKind, State}, states::support_sm::choose_support_dest::ChooseSupportUnitState};
+use crate::interactive::util::{select_from, SelectResult};
+use crate::rules::game_context::GameContext;
 
-use crate::interactive::{state_machine::{InputResult, State, StateMachine}, states::{support_sm::confirm_support::ConfirmSupport, terminal_state::TerminalState}};
-use diplomacy::judge::MappedMainOrder;
-use diplomacy::judge::Rulebook;
-use diplomacy::judge::{OrderOutcome,AttackOutcome};
-
-
-pub struct SelectSupportedUnitState {
-
-}
-
-impl SelectSupportedUnitState {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
+#[derive(Clone, PartialEq)]
+pub struct SelectSupportedUnitState;
 
 impl State for SelectSupportedUnitState {
-    fn render(&self, state_machine: &StateMachine) {
-        
-    }
+    fn render(&self, _machine_data: &MachineData) {}
 
-    fn handle_input(&mut self, input: &str, machine_data: &mut crate::interactive::state_machine::MachineData) -> Option<InputResult> {
-        // Select a unit that is within range of the chosen destination
-        let map = standard_map();
-        if let Some(supported_region) = &machine_data.current_order.support_to {
-            let other_units: Vec<UnitPosition<_>> = machine_data.all_units
-                .iter()
-                .filter(|&region| region != machine_data.selected_unit.as_ref().unwrap())
-                .map(|string| string.parse::<UnitPosition<_>>().unwrap())
-                .collect();
+    fn handle_input(
+        &mut self,
+        _input: &str,
+        machine_data: &mut MachineData,
+        ctx: &GameContext,
+    ) -> InputResult {
+        let supported_region = match machine_data.order_draft.as_ref().and_then(|d| d.move_to.clone()) {
+            Some(region) => region,
+            None => return InputResult::Back,
+        };
 
-            let bordering_regions: Vec<&RegionKey> = map
-                .find_bordering(supported_region);
+        let selected_unit = match machine_data.selected_unit.as_ref() {
+            Some(unit) => unit,
+            None => return InputResult::Back,
+        };
 
+        // 1. All units except the selected one
+        let candidate_units: Vec<UnitPosition<'static, RegionKey>> = ctx
+            .get_unit_positions()
+            .into_iter()
+            .filter(|u| u.region != selected_unit.region)
+            .collect();
 
-            let possible_units: Vec<UnitPosition<_>>  = other_units
-                .iter()
-                .filter(|&unit_pos| {
-                    // make move
-                    let formatted = format!("{unit_pos} -> {supported_region}");
-                    let order = formatted.parse::<MappedMainOrder>().unwrap();
-                    let submission = Submission::with_inferred_state(map, vec![order]);
-                    let outcome = submission.adjudicate(Rulebook::default());
+        // 2. Keep only units that can legally move to the supported region
+        let possible_units: Vec<UnitPosition<'static, RegionKey>> = candidate_units
+            .into_iter()
+            .filter(|unit| {
+                let order = MappedMainOrder::new(
+                    unit.nation().clone(),
+                    unit.unit.unit_type().clone(),
+                    unit.region.clone(),
+                    diplomacy::order::MainCommand::Move(
+                        diplomacy::order::MoveCommand::new(supported_region.clone()),
+                    ),
+                );
 
-                    let results: Vec<_> = outcome.all_orders_with_outcomes().collect();
-                    let (_, result) = results[0];
-                    *result == OrderOutcome::Move(AttackOutcome::Succeeds)
-                })
-                .cloned()
-                .collect();
+                let submission =
+                    Submission::with_inferred_state(&ctx.map, vec![order]);
 
-            let choices: Vec<String> = possible_units
-                .iter()
-                .map(|unit_pos| unit_pos.to_string())
-                .collect();
+                let outcome = submission.adjudicate(Rulebook::default());
 
-            if !choices.is_empty() {
-                use inquire::Select;
+                let is_valid = outcome
+                    .all_orders_with_outcomes()
+                    .next()
+                    .map(|(_, result)| {
+                        *result == OrderOutcome::Move(AttackOutcome::Succeeds)
+                    })
+                    .unwrap_or(false);
+                
+                is_valid
+            })
+            .collect();
 
-                println!("Available Units for that Support:");
-
-                match Select::new("Choose a unit:", choices).prompt() {
-                    Ok(choice) => {
-                        println!("Selected: {}", choice);
-                        machine_data.current_order.support_unit(&choice);
-                        println!("{:?} and {:?}", machine_data.current_order.support_from, machine_data.current_order.support_unit_type);
-                        return Some(InputResult::Advance);
-                    }
-                    Err(_) => println!("Selection cancelled"),
-                }
-            } else {
-                println!("No legal units.");
-            };
-
+        if possible_units.is_empty() {
+            println!("No legal units can be supported for that move.");
+            return InputResult::Back;
         }
-        Some(InputResult::Quit)
+
+        // 3. Let the user select
+        match select_from("Choose a unit to support:", &possible_units) {
+            SelectResult::Selected(unit) => {
+                machine_data.order_draft = Some(OrderDraft {
+                    kind: Some(OrderKind::SupportMove),
+                    move_to: Some(supported_region.clone()),
+                    target: Some(unit),
+                });
+                InputResult::Advance
+            }
+            SelectResult::Back => InputResult::Back,
+            SelectResult::Quit => InputResult::Quit,
+        }
     }
 
-    fn next(self: Box<Self>, state_machine:&mut StateMachine) -> Box<dyn State> {
-        Box::new(ConfirmSupport::new())
+    fn next(
+        &self,
+        _machine_data: &mut MachineData,
+    ) -> crate::interactive::state_machine::UiState {
+        crate::interactive::state_machine::UiState::ConfrimSupportDest(ChooseSupportUnitState)
     }
 
     fn is_terminal(&self) -> bool {
         false
     }
-    
 }

@@ -1,67 +1,62 @@
-use crate::interactive::state_machine::{InputResult, MachineData, State, StateMachine};
-use crate::interactive::states::show_orders::SupportType;
+use crate::interactive::state_machine::{InputResult, MachineData, OrderDraft, OrderIntent, OrderKind, State};
 use crate::interactive::states::support_sm::confirm_support::ConfirmSupport;
-use crate::interactive::states::support_sm::select_supported_unit::SelectSupportedUnitState;
-use crate::interactive::states::terminal_state::TerminalState;
-use crate::interactive::states::support_sm::choose_support_dest::ChooseSupportUnitState;
+use crate::rules::game_context::GameContext;
 
 use diplomacy::UnitPosition;
-use diplomacy::geo::standard_map;
-use inquire::{InquireError, Select};
 
 #[derive(Clone, PartialEq)]
 pub struct SelectHoldToSupport;
 
 impl State for SelectHoldToSupport {
-    fn render(&self, state_machine: &StateMachine) {}
-    fn handle_input(&mut self, input: &str, machine_data: &mut MachineData) -> Option<InputResult> {
-        let possible_units: Vec<UnitPosition<_>> = machine_data.all_units.clone()
-            .into_iter()
-            .map(|str| str.parse::<UnitPosition<_>>().unwrap())
-            .collect();
+    fn render(&self, _machine_data: &MachineData) {}
 
-        // Posible units, find the adjacent units to it
-        let unit_pos = machine_data.selected_unit.as_ref()
-            .unwrap()
-            .parse::<UnitPosition<_>>()
-            .unwrap();
-
-        let bordering = standard_map().find_bordering(&unit_pos.region);
-
-        let adjacent_units: Vec<_> = possible_units
-            .into_iter()
-            .filter(|unit_pos| {
-                bordering.contains(&&unit_pos.region)
-            })
-            .collect();
-
-        let choices: Vec<String> = adjacent_units
-                .iter()
-                .map(|unit_pos| unit_pos.to_string())
-                .collect();
-        
-        if !choices.is_empty() {
-            use inquire::Select;
-
-            println!("Available Units for that Support:");
-
-            match Select::new("Choose a unit:", choices).prompt() {
-                Ok(choice) => {
-                    println!("Selected: {}", choice);
-                    machine_data.current_order.support_unit(&choice);
-                    println!("{:?} and {:?}", machine_data.current_order.support_from, machine_data.current_order.support_unit_type);
-                    return Some(InputResult::Advance);
-                }
-                Err(_) => println!("Selection cancelled"),
-            }
-        } else {
-            println!("No legal units.");
+    fn handle_input(
+        &mut self,
+        _input: &str,
+        machine_data: &mut MachineData,
+        ctx: &GameContext,
+    ) -> InputResult {
+        let selected_unit = match machine_data.selected_unit.as_ref() {
+            Some(unit) => unit,
+            None => return InputResult::Back,
         };
-        return Some(InputResult::Quit);
+
+        // 1. Find regions adjacent to the selected unit
+        let bordering_regions = ctx.map.find_bordering(&selected_unit.region);
+
+        // 2. Collect adjacent units
+        let adjacent_units: Vec<UnitPosition<'static, _>> = ctx
+            .get_unit_positions()
+            .into_iter()
+            .filter(|unit| bordering_regions.contains(&&unit.region))
+            .collect();
+
+        if adjacent_units.is_empty() {
+            println!("No adjacent units available to support.");
+            return InputResult::Back;
+        }
+
+        // 3. Let the player select one
+        match crate::interactive::util::select_from(
+            "Choose a unit to support hold:",
+            &adjacent_units,
+        ) {
+            crate::interactive::util::SelectResult::Selected(unit) => {
+                machine_data.order_intent = Some(OrderIntent::SupportHold { target: unit });
+                InputResult::Advance
+            }
+            crate::interactive::util::SelectResult::Back => InputResult::Back,
+            crate::interactive::util::SelectResult::Quit => InputResult::Quit,
+        }
     }
-    fn next(self: Box<Self>, state_machine:&mut StateMachine) -> Box<dyn State> {
-        Box::new(ConfirmSupport::new())        
+
+    fn next(
+        &self,
+        _machine_data: &mut MachineData,
+    ) -> crate::interactive::state_machine::UiState {
+        crate::interactive::state_machine::UiState::ConfirmSupport(ConfirmSupport)
     }
+
     fn is_terminal(&self) -> bool {
         false
     }

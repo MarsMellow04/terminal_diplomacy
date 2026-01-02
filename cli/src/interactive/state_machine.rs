@@ -2,14 +2,14 @@ use core::fmt;
 use std::default;
 
 use diplomacy::{UnitPosition, UnitType, geo::RegionKey, judge::MappedMainOrder};
-use crate::{interactive::states::{convoy_sm::{choose_destination_of_convoy::ChooseConvoyMove, choose_unit_to_convoy::ChooseConvoyUnit, confirm_convoy::ConfirmConvoyMove}, hold_sm::confirm_hold::ConfirmHold, move_sm::{confirm_move::ConfirmMove, pick_move::PickMoveState}, show_orders::ShowOrders, show_units::ShowUnitState, support_sm::{choose_support_dest::ChooseSupportUnitState, select_unit_to_support::SelectHoldToSupport}, terminal_state::TerminalState}, rules::{game_context::GameContext, order_builder::OrderBuilder}};
+use crate::{interactive::states::{convoy_sm::{choose_destination_of_convoy::ChooseConvoyMove, choose_unit_to_convoy::ChooseConvoyUnit, confirm_convoy::ConfirmConvoyMove}, hold_sm::confirm_hold::ConfirmHold, move_sm::{confirm_move::ConfirmMove, pick_move::PickMoveState}, show_orders::ShowOrders, show_units::ShowUnitState, support_sm::{choose_support_dest::ChooseSupportUnitState, confirm_support::ConfirmSupport, select_unit_to_support::SelectHoldToSupport}, terminal_state::TerminalState}, rules::{game_context::GameContext, order_builder::OrderBuilder}};
 
 
 pub trait State {
     /// Render the prompt for this state
     fn render(&self, machine_data: &MachineData);
     fn handle_input(&mut self, input: &str, machine_data: &mut MachineData, ctx: &GameContext) -> InputResult;
-    fn next(self, machine_data: &mut MachineData) -> UiState;
+    fn next(&self, machine_data: &mut MachineData) -> UiState;
     fn is_terminal(&self) -> bool;
 }
 
@@ -68,6 +68,46 @@ impl fmt::Display for OrderKind {
     }
 }
 
+// Private helper functio:
+impl UiState {
+    fn with_state<T>(&self, f: impl FnOnce(&dyn State) -> T) -> T {
+        match self {
+            UiState::ShowUnit(s) => f(s),
+            UiState::ShowOrder(s) => f(s),
+            UiState::Terminal(s) => f(s),
+            UiState::ChooseConvoyDestination(s) => f(s),
+            UiState::ConfimHold(s) => f(s),
+            UiState::ShowMoves(s) => f(s),
+            UiState::SelectSupportedUnit(s) => f(s),
+            UiState::SelectSupportedDestination(s) => f(s),
+            UiState::ConfirmMove(s) => f(s),
+            UiState::ConfirmConvoy(s) => f(s),
+            UiState::ChooseUnitToConvoy(s) => f(s),
+            UiState::ConfirmSupport(s) => f(s),
+            UiState::ConfrimSupportDest(s) => f(s),
+        }
+    }
+
+    fn with_state_mut<T>(&mut self, f: impl FnOnce(&mut dyn State) -> T) -> T {
+        match self {
+            UiState::ShowUnit(s) => f(s),
+            UiState::ShowOrder(s) => f(s),
+            UiState::Terminal(s) => f(s),
+            UiState::ChooseConvoyDestination(s) => f(s),
+            UiState::ConfimHold(s) => f(s),
+            UiState::ShowMoves(s) => f(s),
+            UiState::SelectSupportedUnit(s) => f(s),
+            UiState::SelectSupportedDestination(s) => f(s),
+            UiState::ConfirmMove(s) => f(s),
+            UiState::ConfirmConvoy(s) => f(s),
+            UiState::ChooseUnitToConvoy(s) => f(s),
+            UiState::ConfirmSupport(s) => f(s),
+            UiState::ConfrimSupportDest(s) => f(s),
+        }
+    }
+}
+
+
 #[derive(Clone, PartialEq)]
 pub enum UiState {
     ShowUnit(ShowUnitState),
@@ -81,35 +121,30 @@ pub enum UiState {
     ConfirmMove(ConfirmMove),
     ConfirmConvoy(ConfirmConvoyMove),
     ChooseUnitToConvoy(ChooseConvoyUnit),
+    ConfirmSupport(ConfirmSupport),
+    ConfrimSupportDest(ChooseSupportUnitState),
 }
 
 impl State for UiState {
     fn render(&self, machine_data: &MachineData) {
-        match self {
-            UiState::Terminal(s) => {s.render(machine_data);}
-            UiState::ShowUnit(s) => {s.render(machine_data);}
-            UiState::ShowOrder(s) => {s.render(machine_data);}
-        }
+        self.with_state(|s| s.render(machine_data))
     }
-    fn handle_input(&mut self, input: &str, machine_data: &mut MachineData, ctx: &GameContext) -> InputResult {
-        match self {
-            UiState::Terminal(s) => {s.handle_input(input, machine_data, ctx)}
-            UiState::ShowUnit(s) => {s.handle_input(input, machine_data, ctx)}
-            UiState::ShowOrder(s) => {s.handle_input(input, machine_data, ctx)}
-        }
+
+    fn handle_input(
+        &mut self,
+        input: &str,
+        machine_data: &mut MachineData,
+        ctx: &GameContext,
+    ) -> InputResult {
+        self.with_state_mut(|s| s.handle_input(input, machine_data, ctx))
     }
-    fn next(self, machine_data: &mut MachineData) -> Self {
-        match self {
-            UiState::Terminal(s) => {s.next(machine_data)}
-            UiState::ShowUnit(s) => {s.next(machine_data)}
-            UiState::ShowOrder(s) => {s.next(machine_data)}
-        }
+
+    fn next(&self, machine_data: &mut MachineData) -> UiState {
+        self.with_state(|s| s.next(machine_data))
     }
+
     fn is_terminal(&self) -> bool {
-        match self {
-            UiState::Terminal(s) => {true}
-            _ => {false}
-        }
+        self.with_state(|s| s.is_terminal())
     }
 }
 

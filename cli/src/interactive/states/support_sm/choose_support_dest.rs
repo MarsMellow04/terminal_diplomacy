@@ -1,96 +1,88 @@
 use crate::interactive::state_machine::{InputResult, MachineData, State};
-use crate::interactive::state_machine::StateMachine;
-use crate::interactive::states::support_sm::select_supported_unit::SelectSupportedUnitState;
-use crate::interactive::states::terminal_state::TerminalState;
-use std::fmt::{self, Display, Formatter};
-use diplomacy::UnitPosition;
-use diplomacy::geo::{Map, standard_map, RegionKey, Location};
-use diplomacy::judge::{Adjudicate, AttackOutcome, Context, MappedMainOrder, OrderOutcome, Outcome, Rulebook, Submission};
-use diplomacy::order::{MainCommand, MoveCommand};
-use diplomacy::*;
+use crate::interactive::states::support_sm::confirm_support::ConfirmSupport;
+use crate::interactive::util::{SelectResult, select_from};
+use diplomacy::geo::{RegionKey};
+use diplomacy::judge::{AttackOutcome, MappedMainOrder, OrderOutcome, Rulebook, Submission};
 
 #[derive(Clone, PartialEq)]
 pub struct ChooseSupportUnitState;
 
 impl State for ChooseSupportUnitState {
-    fn render(&self, machine: &StateMachine) {
-        println!("\nPick a region to support a move to (number), 'q' to quit, or 'b' to go back:\n");
-    }
+    fn render(&self, machine_data: &MachineData) {}
 
-    fn handle_input(&mut self, input: &str, machine_data: &mut MachineData) -> Option<InputResult> {
-        let trimmed = input.trim();
+    fn handle_input(&mut self, input: &str, machine_data: &mut MachineData, ctx: &crate::rules::game_context::GameContext) -> InputResult {
+                let supported_region = match machine_data.order_draft.as_ref().and_then(|d| d.move_to.clone()) {
+            Some(region) => region,
+            None => return InputResult::Back,
+        };
 
-        let map = standard_map();
+        let selected_unit = match machine_data.selected_unit.as_ref() {
+            Some(unit) => unit,
+            None => return InputResult::Back,
+        };
 
-        if let Some(supporter) = machine_data.selected_unit.as_ref() {
-            let supporter_unit = supporter.parse::<UnitPosition<_>>().unwrap();
-            let supporter_region = supporter_unit.as_region_ref().region;
+        // 1. All bordering regions that can be moved to except the selected one
+        let candidate_regions = ctx.map
+            .find_bordering(&selected_unit.region);
 
-            let bordering = map.find_bordering(supporter_region);
+        // 2. Keep only regions that can legally move to the supported region
+        let possible_units: Vec<RegionKey> = candidate_regions
+            .into_iter()
+            .filter(|region| {
+                let order = MappedMainOrder::new(
+                    selected_unit.nation().clone(),
+                    selected_unit.unit.unit_type().clone(),
+                    selected_unit.region.clone(),
+                    diplomacy::order::MainCommand::Move(
+                        diplomacy::order::MoveCommand::new(supported_region.clone()),
+                    ),
+                );
 
-            // Build hypothetical move orders
-            let test_orders: Vec<MappedMainOrder> = bordering
-                .iter()
-                .map(|dst| {
-                    let formatted = format!("{supporter} -> {}", dst.short_name());
-                    formatted.parse::<MappedMainOrder>().unwrap()
-                })
-                .collect();
+                let submission =
+                    Submission::with_inferred_state(&ctx.map, vec![order]);
 
-            // Adjudicate
-            let submission = Submission::with_inferred_state(map, test_orders);
-            let outcome = submission.adjudicate(Rulebook::default());
+                let outcome = submission.adjudicate(Rulebook::default());
 
-            // Filter legal moves
-            let correct_places: Vec<&RegionKey> = outcome
-                .all_orders_with_outcomes()
-                .filter_map(|(order, out)| {
-                    if let OrderOutcome::Move(result) = out {
-                        if *result == AttackOutcome::Succeeds {
-                            return order.move_dest();
-                        }
-                    }
-                    None
-                })
-                .collect();
+                let is_valid = outcome
+                    .all_orders_with_outcomes()
+                    .next()
+                    .map(|(_, result)| {
+                        *result == OrderOutcome::Move(AttackOutcome::Succeeds)
+                    })
+                    .unwrap_or(false);
+                
+                is_valid
+            })
+            .cloned()
+            .collect();
 
-            // Convert to inquire choices
-            let choices: Vec<String> = correct_places
-                .iter()
-                .map(|reg| reg.short_name().to_string())
-                .collect();
-
-            let result = if !choices.is_empty() {
-                use inquire::Select;
-
-                println!("Available Regions to Support:");
-
-                match Select::new("Choose a destination:", choices).prompt() {
-                    Ok(choice) => {
-                        println!("Selected: {}", choice);
-                        machine_data.current_order.support_move_to(&choice);
-                        println!("{:?}", machine_data.current_order.support_to.as_ref());
-                        Some(InputResult::Advance)
-                    }
-                    Err(_) => {
-                        println!("Selection cancelled");
-                        Some(InputResult::Quit)
-                    }
-                }
-            } else {
-                println!("No legal destinations.");
-                Some(InputResult::Quit)
-            };
-            return result;
+        if possible_units.is_empty() {
+            println!("No legal units can be supported for that move.");
+            return InputResult::Back;
         }
-        return Some(InputResult::Quit);
+
+        // 3. Let the user select
+        match select_from("Choose a unit to support:", &possible_units) {
+            SelectResult::Selected(unit) => {
+                if let Some(draft) = &machine_data.order_draft {
+                    machine_data.order_intent = Some(crate::interactive::state_machine::OrderIntent::SupportMove 
+                        { target: draft.target.as_ref().unwrap().clone(), to: unit });
+                    InputResult::Advance
+                } else {
+                    InputResult::Back
+                }
+            }
+            SelectResult::Back => InputResult::Back,
+            SelectResult::Quit => InputResult::Quit,
+        }
     }
 
-    fn next(self: Box<Self>, machine: &mut StateMachine) -> Box<dyn State> {
-        Box::new(SelectSupportedUnitState::new())
+    fn next(&self, machine_data: &mut MachineData) -> crate::interactive::state_machine::UiState {
+        crate::interactive::state_machine::UiState::ConfirmSupport(ConfirmSupport)
     }
 
     fn is_terminal(&self) -> bool {
         false
     }
+
 }

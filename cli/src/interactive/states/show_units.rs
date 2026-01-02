@@ -42,7 +42,7 @@ impl State for ShowUnitState {
         }
     }
 
-    fn next(self, _machine_data: &mut MachineData) -> UiState {
+    fn next(&self, _machine_data: &mut MachineData) -> UiState {
         UiState::ShowOrder(ShowOrders)
     }
     

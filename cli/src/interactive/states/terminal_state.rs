@@ -2,22 +2,20 @@ use crate::interactive::state_machine::InputResult;
 use crate::interactive::state_machine::MachineData;
 use crate::interactive::state_machine::State;
 use crate::interactive::state_machine::StateMachine;
+use crate::interactive::state_machine::UiState;
 
 #[derive(Clone, PartialEq)]
 pub struct TerminalState;
 
 impl State for TerminalState {
-    fn render(&self, _machine: &StateMachine) {
-        // Nothing to render
+    fn render(&self, machine_data: &MachineData) {}
+
+    fn handle_input(&mut self, input: &str, machine_data: &mut MachineData, ctx: &crate::rules::game_context::GameContext) -> InputResult {
+        InputResult::Quit
     }
 
-    fn handle_input(&mut self, _input: &str, _achine_data: &mut MachineData) -> Option<InputResult>{
-        None
-        // no-op
-    }
-
-    fn next(self: Box<Self>, _machine: &mut StateMachine) -> Box<dyn State> {
-        self // remains terminal forever
+    fn next(&self, machine_data: &mut MachineData) -> crate::interactive::state_machine::UiState {
+        UiState::Terminal(TerminalState)
     }
 
     fn is_terminal(&self) -> bool {

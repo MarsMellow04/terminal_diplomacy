@@ -24,7 +24,7 @@ impl State for ConfirmMove {
         }
     }
 
-    fn next(self, _machine_data: &mut MachineData) -> crate::interactive::state_machine::UiState {
+    fn next(&self, _machine_data: &mut MachineData) -> crate::interactive::state_machine::UiState {
         UiState::ShowUnit(ShowUnitState) 
     }
 

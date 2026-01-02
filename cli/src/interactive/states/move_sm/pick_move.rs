@@ -101,7 +101,7 @@ impl State for PickMoveState {
 
     }
 
-    fn next(self, machine_data: &mut MachineData) -> UiState {
+    fn next(&self, machine_data: &mut MachineData) -> UiState {
         UiState::ConfirmMove(ConfirmMove)
     }
 

@@ -65,7 +65,7 @@ impl State for ChooseConvoyMove {
         }
     }
 
-    fn next(self, _machine_data: &mut MachineData) -> UiState {
+    fn next(&self, _machine_data: &mut MachineData) -> UiState {
         UiState::ConfirmConvoy(ConfirmConvoyMove)
     }
 

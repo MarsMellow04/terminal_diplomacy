@@ -1,6 +1,6 @@
 use diplomacy::{UnitType};
 use crate::interactive::state_machine::{InputResult, MachineData, OrderDraft, OrderKind, State, UiState};
-use crate::interactive::states::convoy_sm::choose_destination_of_convoy::ChooseConvoyMove;
+use crate::interactive::states::convoy_sm::choose_unit_to_convoy::ChooseConvoyUnit;
 use crate::interactive::states::hold_sm::confirm_hold::ConfirmHold;
 use crate::interactive::states::move_sm::pick_move::PickMoveState;
 use crate::interactive::states::support_sm::choose_support_dest::ChooseSupportUnitState;
@@ -48,7 +48,7 @@ impl State for ShowOrders {
                 data.order_draft = Some(OrderDraft { 
                     kind: Some(order_kind), 
                     move_to: None, 
-                    support_target: None
+                    target: None
                 });
                 InputResult::Advance
             }
@@ -57,9 +57,9 @@ impl State for ShowOrders {
         }
     }
 
-    fn next(self, machine_data: &mut MachineData) -> crate::interactive::state_machine::UiState {
+    fn next(&self, machine_data: &mut MachineData) -> crate::interactive::state_machine::UiState {
         match machine_data.order_draft.clone().unwrap().kind.unwrap() {
-            OrderKind::Convoy => UiState::ShowConvoyDestination(ChooseConvoyMove),
+            OrderKind::Convoy => UiState::ChooseUnitToConvoy(ChooseConvoyUnit),
             OrderKind::Hold => UiState::ConfimHold(ConfirmHold),
             OrderKind::Move => UiState::ShowMoves(PickMoveState),
             OrderKind::SupportHold => UiState::SelectSupportedUnit(SelectHoldToSupport),

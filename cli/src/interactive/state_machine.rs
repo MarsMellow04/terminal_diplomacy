@@ -2,7 +2,7 @@ use core::fmt;
 use std::default;
 
 use diplomacy::{UnitPosition, UnitType, geo::RegionKey, judge::MappedMainOrder};
-use crate::{interactive::states::{convoy_sm::{choose_destination_of_convoy::ChooseConvoyMove, choose_unit_to_convoy::ChooseConvoyUnit}, hold_sm::confirm_hold::ConfirmHold, move_sm::{confirm_move::ConfirmMove, pick_move::PickMoveState}, show_orders::ShowOrders, show_units::ShowUnitState, support_sm::{choose_support_dest::ChooseSupportUnitState, select_unit_to_support::SelectHoldToSupport}, terminal_state::TerminalState}, rules::{game_context::GameContext, order_builder::OrderBuilder}};
+use crate::{interactive::states::{convoy_sm::{choose_destination_of_convoy::ChooseConvoyMove, choose_unit_to_convoy::ChooseConvoyUnit, confirm_convoy::ConfirmConvoyMove}, hold_sm::confirm_hold::ConfirmHold, move_sm::{confirm_move::ConfirmMove, pick_move::PickMoveState}, show_orders::ShowOrders, show_units::ShowUnitState, support_sm::{choose_support_dest::ChooseSupportUnitState, select_unit_to_support::SelectHoldToSupport}, terminal_state::TerminalState}, rules::{game_context::GameContext, order_builder::OrderBuilder}};
 
 
 pub trait State {
@@ -44,7 +44,7 @@ pub enum OrderIntent {
 pub struct OrderDraft {
     pub kind: Option<OrderKind>,
     pub move_to: Option<RegionKey>,
-    pub support_target: Option<UnitPosition<'static, RegionKey>>,
+    pub target: Option<UnitPosition<'static, RegionKey>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -73,12 +73,14 @@ pub enum UiState {
     ShowUnit(ShowUnitState),
     ShowOrder(ShowOrders),
     Terminal(TerminalState),
-    ShowConvoyDestination(ChooseConvoyMove),
+    ChooseConvoyDestination(ChooseConvoyMove),
     ConfimHold(ConfirmHold),
     ShowMoves(PickMoveState),
     SelectSupportedUnit(SelectHoldToSupport),
     SelectSupportedDestination(ChooseSupportUnitState),
-    ConfirmMove(ConfirmMove)
+    ConfirmMove(ConfirmMove),
+    ConfirmConvoy(ConfirmConvoyMove),
+    ChooseUnitToConvoy(ChooseConvoyUnit),
 }
 
 impl State for UiState {

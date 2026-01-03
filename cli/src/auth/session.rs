@@ -44,7 +44,7 @@ pub trait SessionKeeper {
     fn load(&self) -> Option<Uuid>;
 }
 
-struct FileSessionKeeper {}
+pub struct FileSessionKeeper;
 impl SessionKeeper for  FileSessionKeeper {
     fn save(&self, token: &Uuid) -> std::io::Result<()> {
         let path = session_file_path();
@@ -64,5 +64,18 @@ impl SessionKeeper for  FileSessionKeeper {
         let bytes = fs::read(path).ok()?;
         let data: SessionFile = serde_json::from_slice(&bytes).ok()?;
         Uuid::parse_str(&data.session_token).ok()
+    }
+}
+
+impl<T> SessionKeeper for &T
+where
+    T: SessionKeeper + ?Sized,
+{
+    fn save(&self, token: &uuid::Uuid) -> std::io::Result<()> {
+        (**self).save(token)
+    }
+
+    fn load(&self) -> Option<uuid::Uuid> {
+        (**self).load()
     }
 }

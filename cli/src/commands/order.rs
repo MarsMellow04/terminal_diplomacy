@@ -1,78 +1,94 @@
+use async_trait::async_trait;
+use std::io::{self, Write};
+
 use crate::auth::session::SessionKeeper;
 use crate::commands::util::{Client, Command, CommandError};
-use crate::interactive::states::show_units::{self, ShowUnitState};
-use diplomacy::{ShortName, Unit, UnitPosition, UnitType};
-use diplomacy::{geo::RegionKey};
-use diplomacy::judge::{Rulebook, Submission, MappedMainOrder};
-use diplomacy::geo::{Map, Terrain, standard_map};
-use serde::Deserialize;
-use serde_json::{json};
-use std::collections::BTreeMap;
-use std::net::TcpStream; // <-- correct map type for string->string JSON
+use crate::interactive::states::show_units::ShowUnitState;
+use crate::interactive::state_machine::{State, StateMachine, UiState};
+use crate::rules::fake_context::fake_game_context_france;
 
-use crate::interactive::state_machine::StateMachine;
-
-#[derive(Default)]
-pub struct OrderCommand<C: Client, S: SessionKeeper>{
-    client: C, 
+pub struct OrderCommand<C: Client, S: SessionKeeper> {
+    client: C,
     session: S,
-    name: Option<String>,
-    game_id: String
+    name: Option<String>, // shortcut flag (still unused)
+    game_id: String,
 }
 
-impl <C: Client, S: SessionKeeper> OrderCommand<C,S> {
-    pub fn new(client: C, session: S, name: Option<String>, game_id: String) -> Self {
-        Self { client, session, name, game_id }
-    }
-
-    fn parse_flags(&self) -> Option<String> {
-        println!("Checking flags... ");
-        if self.name.is_none() {
-            println!("Meowza the flags are empty");
-            return None
+impl<C: Client, S: SessionKeeper> OrderCommand<C, S> {
+    pub fn new(
+        client: C,
+        session: S,
+        name: Option<String>,
+        game_id: String,
+    ) -> Self {
+        Self {
+            client,
+            session,
+            name,
+            game_id,
         }
-        None
     }
 
+    /// Shortcut flags hook (intentionally no-op for now)
+    fn parse_flags(&self) -> Option<()> {
+        if self.name.is_some() {
+            println!("Shortcut flags detected (not implemented yet)");
+            Some(())
+        } else {
+            None
+        }
+    }
 }
 
-impl <C: Client, S: SessionKeeper> OrderCommand<C,S> {
-    pub fn execute(&mut self) -> Result<(), CommandError> {
+#[async_trait]
+impl<C, S> Command for OrderCommand<C, S>
+where
+    C: Client + Send,
+    S: SessionKeeper + Send,
+{
+    async fn execute(&mut self) -> Result<(), CommandError> {
+        // 1️⃣ Shortcut path (future use)
         if self.parse_flags().is_some() {
-            println!("Flags have been added! will skip interactive method")
+            println!("Skipping interactive mode (not yet implemented)");
+            // fall through to interactive for now
         }
-        use std::io::{self, Write};
 
-        // Creates and starts the StateMachine
+        // 2️⃣ Start interactive FSM (blocking, intentionally)
         let mut machine = StateMachine::new(
-            Box::new(ShowUnitState::new()),
-            vec!["FRA: F eng", "FRA: A par","FRA: A mos", "FRA: A bur", "FRA: A pic"] 
-                .into_iter()
-                .map(|str | str.to_string())
-                .collect()
+            UiState::ShowUnit(ShowUnitState),
+            fake_game_context_france(),
         );
+
         while !machine.is_finished() {
-            machine.state.render(&machine);
+            machine.state.render(&machine.data);
 
             print!("> ");
             io::stdout().flush().unwrap();
 
             let mut input = String::new();
             io::stdin().read_line(&mut input).unwrap();
+
             machine.update(input.trim());
         }
-        
+
+        // 3️⃣ FSM finished → build & send order
         let session_token = self
             .session
             .load()
             .ok_or(CommandError::NoSessionToken)?;
 
-        let Ok(orders) = serde_json::to_string(&machine.data.orders) else {
-            return Err(CommandError::WriteFailure)
-        };
+        let orders_json =
+            serde_json::to_string(&machine.data.orders)
+                .map_err(|_| CommandError::WriteFailure)?;
 
-        // JOIN;<session_id>;<orders>\n
-        let msg = format!("ORDER;MAIN;{};{}",session_token, orders);
-        self.client.send(&msg)
+        // ORDER;MAIN;<session_id>;<orders>\n
+        let msg = format!(
+            "ORDER;MAIN;{};{}\n",
+            session_token,
+            orders_json
+        );
+
+        self.client.send(&msg).await?;
+        Ok(())
     }
 }

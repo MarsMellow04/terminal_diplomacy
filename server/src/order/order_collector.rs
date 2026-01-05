@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, error::Error};
 
 use uuid::Uuid;
 use diplomacy::{Order, Phase, UnitType, geo::RegionKey, judge::MappedMainOrder, order};
@@ -29,7 +29,7 @@ impl OrderCollector {
 
     pub fn submit_order(&mut self, game_instance: &GameInstance, user: Uuid, orders: Vec<MappedMainOrder>) -> Result<Uuid, OrderError> {
         // Must be same phase
-        println!("[DEBUG] This is the current stuff in the game_instabnce: {:?}", game_instance);
+        // println!("[DEBUG] This is the current stuff in the game_instabnce: {:?}", game_instance);
         if game_instance.phase != Phase::Main {
             return Err(OrderError::WrongPhase)
         }
@@ -60,7 +60,20 @@ impl OrderCollector {
         false
     }
 
-    pub fn snapshot() {}
+    pub fn snapshot(&self) -> Result<String, serde_json::Error>{
+        let val: Vec<MappedMainOrder> = self.player_orders.values().flat_map(|v| v.clone()).collect();
+        Ok(serde_json::to_string(&val)?)
+    }
 
-    pub fn clear() {}
+    pub fn all_orders(&self) -> Vec<MappedMainOrder> {
+        self
+            .player_orders
+            .values()
+            .flat_map(|v| v.clone())
+            .collect()
+    }
+
+    pub fn clear(&mut self) {
+        self.player_orders.clear();
+    }
 }

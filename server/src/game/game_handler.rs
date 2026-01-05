@@ -1,7 +1,7 @@
 use diplomacy::{Nation, judge::MappedMainOrder};
 use rand::{seq::IndexedRandom};
 use uuid::Uuid;
-use std::{fmt, iter};
+use std::{fmt::{self, format}, iter};
 use crate::order::order_collector::{self, OrderCollector};
 
 use super::game_instance::GameInstance;
@@ -76,6 +76,7 @@ impl GameHandler {
             id: Uuid::new_v4(),
             instance: GameInstance::new(),
             order_collector: OrderCollector::new(),
+            
         }
     }
 pub fn try_join(&mut self, user_id: UserId) -> Result<(), JoinError>{

@@ -35,7 +35,7 @@ impl OrderService {
             .get_mut_game(&game_id)
             .ok_or(OrderError::GameNotFound)?;
 
-        let res = gh.recieve_order(user_id, orders)?;
+    let res = gh.recieve_order(user_id, orders)?;
         Ok(res)
     }
 }

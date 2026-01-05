@@ -1,8 +1,8 @@
-use std::{collections::{HashMap, HashSet}, default, str::FromStr};
+use std::{borrow::Cow, collections::{HashMap, HashSet}, default, str::FromStr};
 
 use uuid::Uuid;
 type UserId = Uuid;
-use diplomacy::{Nation, Phase, UnitPosition, UnitType, geo::{Map, ProvinceKey, RegionKey, standard_map}};
+use diplomacy::{Nation, Phase, Unit, UnitPosition, UnitType, geo::{Map, ProvinceKey, RegionKey, standard_map}};
 
 fn get_starting_positions() -> HashMap<Nation, HashSet<(UnitType, RegionKey)>> {
     let starting_positions = vec![
@@ -102,6 +102,27 @@ impl GameInstance {
             .unwrap_or_default()
             .try_into()
             .unwrap()
+    }
+
+    pub fn map_used(&self) -> &Map {
+        &self.map
+    }
+
+    pub fn get_unit_positions(&self) -> Vec<UnitPosition<'static, RegionKey>> {
+        let mut out = Vec::new();
+
+        for (nation, unit_set) in self.units.iter() {
+            for (unit_type, region) in unit_set {
+                let pos = UnitPosition {
+                    unit: Unit::new(Cow::Owned(nation.clone()), unit_type.clone()),
+                    region: region.clone(), // OWNED
+                };
+
+                out.push(pos);
+            }
+        }
+
+        out
     }
 
 

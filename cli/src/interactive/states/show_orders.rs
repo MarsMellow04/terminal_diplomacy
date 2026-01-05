@@ -1,3 +1,4 @@
+use common::context::GameContext;
 use diplomacy::{UnitType};
 use crate::interactive::state_machine::{InputResult, MachineData, OrderDraft, OrderKind, State, UiState};
 use crate::interactive::states::convoy_sm::choose_unit_to_convoy::ChooseConvoyUnit;
@@ -38,7 +39,7 @@ impl State for ShowOrders {
         println!("\nSelected unit {:?}:", unit_at);
     }
 
-    fn handle_input(&mut self, _input: &str, data: &mut MachineData, _ctx: &crate::rules::game_context::GameContext) -> InputResult {
+    fn handle_input(&mut self, _input: &str, data: &mut MachineData, _ctx: &GameContext) -> InputResult {
         let unit = data.selected_unit.clone().unwrap();
         let unit_type = unit.unit.unit_type();
 

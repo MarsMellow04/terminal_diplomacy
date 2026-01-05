@@ -1,3 +1,4 @@
+use common::context::GameContext;
 use diplomacy::geo::{Map, RegionKey, Terrain, standard_map};
 use diplomacy::judge::MappedMainOrder;
 use diplomacy::order::{self, MoveCommand};
@@ -17,7 +18,6 @@ use crate::interactive::state_machine::InputResult;
 use crate::interactive::states::convoy_sm::convoy::route_may_exist;
 
 use crate::interactive::util::{SelectResult, select_from};
-use crate::rules::game_context::GameContext;
 use crate::interactive::state_machine::UiState;
 use crate::interactive::state_machine::OrderIntent;
 
@@ -35,7 +35,8 @@ impl State for PickMoveState {
         let mut adjacent_moves = Vec::<RegionKey>::new();
         let mut convoy_moves = Vec::<RegionKey>::new();
 
-        for region in ctx.map.regions() {
+        let map = ctx.resolve_map();
+        for region in map.regions() {
             let dest = RegionKey::from_str(&region.short_name()).unwrap();
             if dest == origin.region {
                 continue;
@@ -46,8 +47,7 @@ impl State for PickMoveState {
                 continue;
             }
 
-            let is_land_adjacent = ctx
-                .map
+            let is_land_adjacent = map
                 .find_border_between(&origin.region, &dest)
                 .is_some();
 
@@ -74,7 +74,7 @@ impl State for PickMoveState {
                         .collect();
 
                 if route_may_exist(
-                    &ctx.map, 
+                    &map, 
                     borrowed_positions, 
                     &order) {
                     convoy_moves.push(dest.clone());

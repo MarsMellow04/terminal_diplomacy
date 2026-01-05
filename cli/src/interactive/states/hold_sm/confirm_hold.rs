@@ -1,3 +1,5 @@
+use common::context::GameContext;
+
 use crate::interactive::state_machine::{InputResult, MachineData, State};
 use crate::interactive::states::show_units::ShowUnitState;
 use crate::interactive::util::{SelectResult, finalize_order, select_from};
@@ -9,7 +11,7 @@ pub struct ConfirmHold;
 impl State for ConfirmHold {
     fn render(&self,  _machine: &MachineData) {}
 
-    fn handle_input(&mut self, _input: &str, machine_data: &mut MachineData, _ctx: &crate::rules::game_context::GameContext) -> InputResult {
+    fn handle_input(&mut self, _input: &str, machine_data: &mut MachineData, _ctx: &GameContext) -> InputResult {
         let options = vec!["Yes", "No"];
         match select_from("Do you confirm this order?", &options) {
             SelectResult::Selected("Yes") => {

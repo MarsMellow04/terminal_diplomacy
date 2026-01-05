@@ -1,3 +1,5 @@
+use common::context::GameContext;
+
 use crate::interactive::state_machine::InputResult;
 use crate::interactive::state_machine::MachineData;
 use crate::interactive::state_machine::State;
@@ -10,7 +12,7 @@ pub struct TerminalState;
 impl State for TerminalState {
     fn render(&self, machine_data: &MachineData) {}
 
-    fn handle_input(&mut self, input: &str, machine_data: &mut MachineData, ctx: &crate::rules::game_context::GameContext) -> InputResult {
+    fn handle_input(&mut self, input: &str, machine_data: &mut MachineData, ctx: &GameContext) -> InputResult {
         InputResult::Quit
     }
 

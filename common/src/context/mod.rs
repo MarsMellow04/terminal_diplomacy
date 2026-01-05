@@ -1,11 +1,19 @@
 use std::{borrow::Cow, collections::{HashMap, HashSet}};
 
 use diplomacy::{Nation, ShortName, Unit, UnitPosition, UnitType, geo::{Map, ProvinceKey, RegionKey, standard_map}, judge::MappedMainOrder};
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MapKind {
+    // more can be added in the future
+    Standard,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameContext {
     pub user_nation: Nation,
-    pub map: Map,
+    map: MapKind,
     last_owners: HashMap<ProvinceKey, Nation>, 
     occupiers: HashMap<ProvinceKey, Nation>,
     pub units: HashMap<Nation, HashSet<(UnitType, RegionKey)>>,
@@ -14,13 +22,14 @@ pub struct GameContext {
 impl GameContext {
     pub fn new(
         user_nation: Nation, 
+        map_kind: MapKind,
         last_owners: HashMap<ProvinceKey, Nation>, 
         occupiers: HashMap<ProvinceKey, Nation>,
         units: HashMap<Nation, HashSet<(UnitType, RegionKey)>>,
     ) -> Self {
         Self {
             user_nation: user_nation,
-            map: standard_map().clone(),
+            map: map_kind,
             last_owners: last_owners,
             occupiers: occupiers,
             units: units,
@@ -69,6 +78,12 @@ impl GameContext {
         }
 
         out
+    }
+
+    pub fn resolve_map(&self) -> Map {
+        match self.map {
+            MapKind::Standard => standard_map().clone(),
+        }
     }
 
 }

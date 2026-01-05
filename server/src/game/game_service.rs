@@ -1,7 +1,9 @@
+use common::context::GameContext;
 use uuid::Uuid;
 use std::iter::Successors;
 use std::sync::Arc;
 
+use crate::auth::session::Session;
 use crate::game::game_handler::{self, GameHandler, JoinError};
 use crate::game::game_instance::GameInstance;
 use crate::game::game_registry::GameRegistry;
@@ -68,5 +70,21 @@ impl GameService {
         
         Ok(())
 
+    }
+
+    pub async fn get_game_state(&self, session: &Session) -> Result<GameContext, String>{
+        let registry = GAME_REGISTRY.read().await;
+        let gh: &GameHandler = match registry.get_game(&session.current_game.unwrap()) {
+            Some(gh) => {gh}
+            None => {
+                eprintln!("[GAME_SERV_ERROR] Failed to find game! ");
+                // Maybe add more here 
+                return Err("No game found".to_string());
+            }
+        };
+        gh
+            .instance
+            .to_context_for(&session.user)
+            .ok_or("Cannot convert instance into context".to_string())
     }
 }

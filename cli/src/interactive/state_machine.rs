@@ -2,7 +2,8 @@ use core::fmt;
 use std::default;
 
 use diplomacy::{UnitPosition, UnitType, geo::RegionKey, judge::MappedMainOrder};
-use crate::{interactive::states::{convoy_sm::{choose_destination_of_convoy::ChooseConvoyMove, choose_unit_to_convoy::ChooseConvoyUnit, confirm_convoy::ConfirmConvoyMove}, hold_sm::confirm_hold::ConfirmHold, move_sm::{confirm_move::ConfirmMove, pick_move::PickMoveState}, show_orders::ShowOrders, show_units::ShowUnitState, support_sm::{choose_support_dest::ChooseSupportUnitState, confirm_support::ConfirmSupport, select_unit_to_support::SelectHoldToSupport}, terminal_state::TerminalState}, rules::{game_context::GameContext, order_builder::OrderBuilder}};
+use crate::{interactive::states::{convoy_sm::{choose_destination_of_convoy::ChooseConvoyMove, choose_unit_to_convoy::ChooseConvoyUnit, confirm_convoy::ConfirmConvoyMove}, hold_sm::confirm_hold::ConfirmHold, move_sm::{confirm_move::ConfirmMove, pick_move::PickMoveState}, show_orders::ShowOrders, show_units::ShowUnitState, support_sm::{choose_support_dest::ChooseSupportUnitState, confirm_support::ConfirmSupport, select_unit_to_support::SelectHoldToSupport}, terminal_state::TerminalState}, rules::order_builder::OrderBuilder};
+use common::context::GameContext;
 
 
 pub trait State {

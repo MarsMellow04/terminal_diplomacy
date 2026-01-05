@@ -1,5 +1,6 @@
 use std::{borrow::Cow, collections::{HashMap, HashSet}, default, str::FromStr};
 
+use common::context::{GameContext, MapKind};
 use uuid::Uuid;
 type UserId = Uuid;
 use diplomacy::{Nation, Phase, Unit, UnitPosition, UnitType, geo::{Map, ProvinceKey, RegionKey, standard_map}};
@@ -125,5 +126,15 @@ impl GameInstance {
         out
     }
 
+    pub fn to_context_for(&self, user_id: &UserId) -> Option<GameContext> {
+        let nation = self.players.get(user_id)?.clone();
 
+        Some(GameContext::new(
+            nation, 
+            MapKind::Standard, 
+            self.last_owners.clone(), 
+            self.occupiers.clone(), 
+            self.units.clone()
+        ))
+    }
 }

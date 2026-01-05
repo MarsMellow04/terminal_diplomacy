@@ -1,3 +1,4 @@
+use common::context::GameContext;
 use diplomacy::geo::{Map, RegionKey, Terrain, standard_map};
 use diplomacy::judge::{Adjudicate, ResolverState, Rulebook, Submission};
 use diplomacy::judge::build::WorldState;
@@ -25,7 +26,7 @@ pub struct ConfirmSupport;
 impl State for ConfirmSupport {
     fn render(&self, _: &MachineData) {}
 
-    fn handle_input(&mut self, _input: &str, machine_data: &mut MachineData, _ctx: &crate::rules::game_context::GameContext) -> InputResult {
+    fn handle_input(&mut self, _input: &str, machine_data: &mut MachineData, _ctx: &GameContext) -> InputResult {
         let options = vec!["Yes", "No"];
         match select_from("Do you confirm this order?", &options) {
             SelectResult::Selected("Yes") => {

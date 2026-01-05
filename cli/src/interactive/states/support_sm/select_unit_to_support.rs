@@ -1,7 +1,7 @@
 use crate::interactive::state_machine::{InputResult, MachineData, OrderDraft, OrderIntent, OrderKind, State};
 use crate::interactive::states::support_sm::confirm_support::ConfirmSupport;
-use crate::rules::game_context::GameContext;
 
+use common::context::GameContext;
 use diplomacy::UnitPosition;
 
 #[derive(Clone, PartialEq)]
@@ -22,7 +22,8 @@ impl State for SelectHoldToSupport {
         };
 
         // 1. Find regions adjacent to the selected unit
-        let bordering_regions = ctx.map.find_bordering(&selected_unit.region);
+        let map = ctx.resolve_map();
+        let bordering_regions = map.find_bordering(&selected_unit.region);
 
         // 2. Collect adjacent units
         let adjacent_units: Vec<UnitPosition<'static, _>> = ctx

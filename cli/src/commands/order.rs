@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use common::context::GameContext;
 use std::io::{self, Write};
 
 use crate::auth::session::SessionKeeper;
@@ -47,16 +48,27 @@ where
     S: SessionKeeper + Send,
 {
     async fn execute(&mut self) -> Result<(), CommandError> {
-        // 1️⃣ Shortcut path (future use)
         if self.parse_flags().is_some() {
             println!("Skipping interactive mode (not yet implemented)");
             // fall through to interactive for now
         }
 
-        // 2️⃣ Start interactive FSM (blocking, intentionally)
+        let session_token = self
+            .session
+            .load()
+            .ok_or(CommandError::NoSessionToken)?;
+
+        // Here I need to fetch the context of this game
+        // CONTEXT;<session_token>\n
+        let msg = format!("CONTEXT;{}\n", session_token);
+        self.client.send(&msg).await?;
+        let context_rec = self.client.read().await?;
+        let context: GameContext = serde_json::from_str(&context_rec)
+            .or(Err(CommandError::NoContextFound))?;
+
         let mut machine = StateMachine::new(
             UiState::ShowUnit(ShowUnitState),
-            fake_game_context_france(),
+            context
         );
 
         while !machine.is_finished() {
@@ -66,12 +78,7 @@ where
             machine.update(input.trim());
         }
 
-        // 3️⃣ FSM finished → build & send order
-        let session_token = self
-            .session
-            .load()
-            .ok_or(CommandError::NoSessionToken)?;
-
+        // FSM finished, sendign  the orders
         let orders_json =
             serde_json::to_string(&machine.data.orders)
                 .map_err(|_| CommandError::WriteFailure)?;

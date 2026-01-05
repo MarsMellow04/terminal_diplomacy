@@ -121,6 +121,20 @@ async fn handle_client(mut stream: TcpStream, cm: Arc<ConnectionsManager>) -> Re
                 }
             }
         }
+        "CONTEXT" => {
+            // CONTEXT;<session_token>\n
+            println!("[DEBUG] Receved {:?}", data);
+            let session_str = data[1].clone();
+            let session_id = Uuid::parse_str(&session_str)?;
+
+            let context = cm.handle_context(session_id).await?;
+            let context_json = serde_json::to_string(&context)
+                .map_err(|_| "Context unable to be serialized".to_string())?;
+
+            println!("[DEBUG] found context: {:?}", context);
+            stream.write_all(format!("{context_json}\n").as_bytes()).await?;
+            stream.write_all(b"\n").await?;
+        }
         _ => {
     
         }

@@ -107,9 +107,7 @@ pub fn try_join(&mut self, user_id: UserId) -> Result<(), JoinError>{
             .collect();
         
         let nation = possible_nation.choose(&mut rand::rng()).unwrap().clone();
-        
-        // TODO: When finished removign faking
-        self.instance.players.insert(user_id, Nation::from("fra"));
+        self.instance.players.insert(user_id, nation);
         Ok(())
     }
 

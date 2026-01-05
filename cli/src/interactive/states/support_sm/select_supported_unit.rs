@@ -1,3 +1,4 @@
+use common::context::GameContext;
 use diplomacy::{
     UnitPosition,
     geo::RegionKey,
@@ -6,7 +7,6 @@ use diplomacy::{
 
 use crate::interactive::{state_machine::{InputResult, MachineData, OrderDraft, OrderKind, State}, states::support_sm::choose_support_dest::ChooseSupportUnitState};
 use crate::interactive::util::{select_from, SelectResult};
-use crate::rules::game_context::GameContext;
 
 #[derive(Clone, PartialEq)]
 pub struct SelectSupportedUnitState;
@@ -50,8 +50,9 @@ impl State for SelectSupportedUnitState {
                     ),
                 );
 
+                let map = ctx.resolve_map();
                 let submission =
-                    Submission::with_inferred_state(&ctx.map, vec![order]);
+                    Submission::with_inferred_state(&map, vec![order]);
 
                 let outcome = submission.adjudicate(Rulebook::default());
 

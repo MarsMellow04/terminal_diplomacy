@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use common::context::GameContext;
 use diplomacy::UnitPosition;
 use diplomacy::geo::{RegionKey, Terrain};
 use diplomacy::order::{self, MoveCommand};
@@ -18,7 +19,7 @@ pub struct ChooseConvoyMove;
 impl State for ChooseConvoyMove {
     fn render(&self, _machine_data: &MachineData) {}
 
-    fn handle_input(&mut self, _input: &str, machine_data: &mut MachineData, ctx: &crate::rules::game_context::GameContext) -> InputResult {
+    fn handle_input(&mut self, _input: &str, machine_data: &mut MachineData, ctx: &GameContext) -> InputResult {
         // Check the adjacent  <- This will be wrong need to change
         let Some(order_draft) = machine_data.order_draft.as_ref() else {
             println!("Unreachable state found!");
@@ -35,8 +36,9 @@ impl State for ChooseConvoyMove {
                         .collect();
         
         let mut possible_moves = vec![];
+        let map = ctx.resolve_map();
         
-        for region in ctx.map.regions() {
+        for region in map.regions() {
             let dest = RegionKey::from_str(&region.short_name()).unwrap();
             if (dest == origin.region) || (region.terrain() == Terrain::Sea){
                 continue;
@@ -49,7 +51,7 @@ impl State for ChooseConvoyMove {
                     order::MainCommand::Move(MoveCommand::new(dest.clone())),
                 );
                 
-            if route_may_exist(&ctx.map, borrowed_positions.clone(), &order) {
+            if route_may_exist(&map, borrowed_positions.clone(), &order) {
                 possible_moves.push(dest.clone());
             }
 

@@ -1,3 +1,4 @@
+use common::context::GameContext;
 use diplomacy::geo::{RegionKey};
 use diplomacy::{UnitPosition, UnitType};
 
@@ -13,8 +14,9 @@ impl State for ChooseConvoyUnit {
     fn render(&self, _machine_data: &MachineData) {}
     
 
-    fn handle_input(&mut self, _input: &str, machine_data: &mut MachineData, ctx: &crate::rules::game_context::GameContext) -> InputResult {
-        let possible_regions = ctx.map
+    fn handle_input(&mut self, _input: &str, machine_data: &mut MachineData, ctx: &GameContext) -> InputResult {
+        let map = ctx.resolve_map();
+        let possible_regions = map
             .find_bordering(&machine_data.selected_unit.as_ref().unwrap().region);
         
         let units: Vec<UnitPosition<'static, RegionKey>>= ctx

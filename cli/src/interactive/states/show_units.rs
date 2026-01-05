@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use common::context::GameContext;
 use diplomacy::Unit;
 use diplomacy::UnitPosition;
 use crate::interactive::state_machine::MachineData;
@@ -9,7 +10,6 @@ use crate::interactive::state_machine::UiState;
 use crate::interactive::util::SelectResult;
 use crate::interactive::util::UnitAt;
 use crate::interactive::util::select_from;
-use crate::rules::game_context::GameContext;
 
 #[derive(Clone, PartialEq)]
 pub struct ShowUnitState;

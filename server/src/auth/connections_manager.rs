@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use crate::data::user::{self, ActiveModel as ActiveUserModel, Column as UserColumn, Entity as User, Model as UserModel};
 use crate::data::game::{self, ActiveModel as ActiveGameModel, Column as GameColumn, Entity as Game, Model as GameModel};
+use common::context::GameContext;
 use diplomacy::judge::MappedMainOrder;
 use sea_orm::{EntityTrait, ColumnTrait, QueryFilter};
 use sea_orm::DbErr;
@@ -139,6 +140,14 @@ impl ConnectionsManager {
             _ => {}
         }
         Ok(Uuid::max())
+    }
+
+    pub async fn handle_context(&self, session_id: Uuid) -> Result<GameContext, String>{
+        // Adds the user to the game on the the session
+        let session_store = self.session_store.read().await;
+        let user_session = session_store.get(&session_id).expect("Something has gone wrong and the session is not found");
+
+        self.game_service.get_game_state(user_session).await
     }
 
 } 

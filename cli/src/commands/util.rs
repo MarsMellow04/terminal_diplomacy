@@ -10,6 +10,7 @@ pub enum CommandError {
     WriteFailure,
     NoSessionTokenRead,
     SessionSaveFailed,
+    NoContextFound,
 }
 
 #[automock]

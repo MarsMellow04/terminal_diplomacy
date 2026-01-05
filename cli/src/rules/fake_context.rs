@@ -9,7 +9,7 @@ use diplomacy::{
     geo::{RegionKey, ProvinceKey, standard_map},
 };
 
-use crate::rules::game_context::GameContext;
+use common::context::{GameContext, MapKind};
 
 /// Temporary fake context until API exists
 pub fn fake_game_context_france() -> GameContext {
@@ -75,6 +75,7 @@ pub fn fake_game_context_france() -> GameContext {
 
     GameContext::new(
         user_nation,
+        MapKind::Standard,
         last_owners,
         occupiers,
         units,

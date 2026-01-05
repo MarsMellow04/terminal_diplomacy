@@ -1,6 +1,7 @@
 use crate::interactive::state_machine::{InputResult, MachineData, State};
 use crate::interactive::states::support_sm::confirm_support::ConfirmSupport;
 use crate::interactive::util::{SelectResult, select_from};
+use common::context::GameContext;
 use diplomacy::geo::{RegionKey};
 use diplomacy::judge::{AttackOutcome, MappedMainOrder, OrderOutcome, Rulebook, Submission};
 
@@ -10,7 +11,7 @@ pub struct ChooseSupportUnitState;
 impl State for ChooseSupportUnitState {
     fn render(&self, machine_data: &MachineData) {}
 
-    fn handle_input(&mut self, input: &str, machine_data: &mut MachineData, ctx: &crate::rules::game_context::GameContext) -> InputResult {
+    fn handle_input(&mut self, input: &str, machine_data: &mut MachineData, ctx: &GameContext) -> InputResult {
                 let supported_region = match machine_data.order_draft.as_ref().and_then(|d| d.move_to.clone()) {
             Some(region) => region,
             None => return InputResult::Back,
@@ -22,7 +23,8 @@ impl State for ChooseSupportUnitState {
         };
 
         // 1. All bordering regions that can be moved to except the selected one
-        let candidate_regions = ctx.map
+        let map = ctx.resolve_map();
+        let candidate_regions = map
             .find_bordering(&selected_unit.region);
 
         // 2. Keep only regions that can legally move to the supported region
@@ -39,7 +41,7 @@ impl State for ChooseSupportUnitState {
                 );
 
                 let submission =
-                    Submission::with_inferred_state(&ctx.map, vec![order]);
+                    Submission::with_inferred_state(&map, vec![order]);
 
                 let outcome = submission.adjudicate(Rulebook::default());
 

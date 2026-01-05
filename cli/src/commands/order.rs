@@ -83,6 +83,8 @@ where
             orders_json
         );
 
+        println!("{}", msg);
+
         self.client.send(&msg).await?;
         Ok(())
     }

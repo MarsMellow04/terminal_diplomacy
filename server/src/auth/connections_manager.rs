@@ -70,16 +70,15 @@ impl ConnectionsManager {
         Ok(res)
     }
 
-    pub async fn handle_join(&self, game_str: &str, session_id: Uuid ) {
+    pub async fn handle_join(&self, game_str: &str, session_id: Uuid ) -> Result<Uuid, String>{
         let game_id = match Uuid::parse_str(game_str) {
             Ok(id) => id,
             Err(e) => {
                 eprint!("This is annoying {e}");
-                return;
+                return Err(format!("Failed to parse UUID: {}", e));
             }
         };
 
-        // The time is now! From the message it sends over the session:
         let mut session_store = self.session_store.write().await;
         let user_session = session_store.get_mut(&session_id).expect("Something has gone wrong and the session is not found");
         
@@ -87,19 +86,26 @@ impl ConnectionsManager {
             Ok(()) => {println!("Game joined succesffully ");}
             Err(e) => {
                 println!("lol not dealing with this {e}");
-                return;
+                return Err(format!("Failed to find game with GameID: {}", e));
             }
-        }
+        }   
 
         user_session.current_game = Some(game_id);
+        println!("Debug!: This is the contents of the session: {:?}", user_session);
+        Ok(session_id)
+        
     }
 
-    pub async fn handle_create(&self, session_id: Uuid) {
+    pub async fn handle_create(&self, session_id: Uuid) -> Result<Uuid, String> {
         let game_id = self.game_service.create_game().await;
-        // UAtomatically add the user to the game 
+        // Automatically add the user to the game 
         let mut session_store = self.session_store.write().await;
         let user_session = session_store.get_mut(&session_id).expect("Something has gone wrong and the session is not found");
         user_session.current_game = Some(game_id);
+
+        // Update the session for the user as they added to a game
+        println!("Debug!: This is the contents of the session: {:?}", user_session);
+        Ok(session_id)
     }
 
     pub async fn handle_order_submission(&self, order_str: &str, session_id: Uuid) {

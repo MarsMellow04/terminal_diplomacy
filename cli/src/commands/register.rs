@@ -40,7 +40,7 @@ where
         self.session
             .save(&session_token)
             .map_err(|_| CommandError::SessionSaveFailed)?;
-
+        
         Ok(())
     }
 }

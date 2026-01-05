@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use uuid::Uuid;
 
 use crate::{
     auth::session::SessionKeeper,
@@ -32,6 +33,19 @@ where
         let msg = format!("CREATE;{}\n", session_token);
 
         self.client.send(&msg).await?;
+        // This does a quick sanity check that the one recieved is the same:
+        let token_str = self.client.read().await?;
+
+        println!("[DEBUG] Recieved from the server: {}", token_str);
+
+        let rec_token =
+            Uuid::parse_str(&token_str).map_err(|_| CommandError::NoSessionToken)?;
+        
+        println!("[DEBUG] Have read from the server: {}", rec_token);
+
+        let expec_token = self.session.load().ok_or(CommandError::NoSessionToken)?;
+        assert_eq!(rec_token, expec_token);
+
         Ok(())
     }
 }

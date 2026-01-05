@@ -30,6 +30,7 @@ pub struct InMemoryStore {
     sessions: HashMap<SessionId, Session>
 }
 
+#[derive(Debug)]
 pub struct Session {
     pub user: UserId,
     pub current_game: Option<GameId>,

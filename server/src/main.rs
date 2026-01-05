@@ -2,6 +2,7 @@ use std::error::Error;
 use std::io::{Read, Write};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use uuid::Uuid;
 use std::sync::{Arc};
 use tokio::sync::RwLock;
 
@@ -76,18 +77,32 @@ async fn handle_client(mut stream: TcpStream, cm: Arc<ConnectionsManager>) -> Re
             // Need to figure out how to print this back
             let uuid_str = query_result.to_string();
 
-            println!("This is what teh sesssion id should look like: {uuid_str}");
+            println!("[DEBUG] This is what sesssion id should look like: {uuid_str}");
             stream.write_all(uuid_str.as_bytes()).await?;
             stream.write_all(b"\n").await?;
 
         }
-        // "JOIN" => {
-        //     let game_id =  data[1].clone();
-        //     cm.handle_join(&game_id).await;
-        // }
-        // "CREATE" => {
-        //     cm.handle_create().await;
-        // }
+        "JOIN" => {
+            println!("[DEBUG] Recieved: {:?}", data);
+            let game_id =  data[1].clone();
+            let session_str = data[2].clone();
+            let session_id = Uuid::parse_str(&session_str)?;
+            let result_id = cm.handle_join(&game_id, session_id).await?;
+
+            println!("[DEBUG] This is what the sesssion id should look like: {result_id}");
+            stream.write_all(format!("{result_id}\n").as_bytes()).await?;
+            stream.write_all(b"\n").await?;
+        }
+        "CREATE" => {
+            println!("[DEBUG] Recieved: {:?}", data);
+            let session_str = data[1].clone();
+            let session_id = Uuid::parse_str(&session_str)?;
+            let result_id = cm.handle_create(session_id).await?;
+
+            println!("[DEBUG] This is what the sesssion id should look like: {result_id}");
+            stream.write_all(format!("{result_id}\n").as_bytes()).await?;
+            stream.write_all(b"\n").await?;
+        }
         // "ORDER" => {
         //     let order_str = data[2].clone();
         //     let game_str = data[3].clone();

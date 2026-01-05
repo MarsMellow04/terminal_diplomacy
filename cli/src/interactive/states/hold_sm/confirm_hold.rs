@@ -13,6 +13,7 @@ impl State for ConfirmHold {
         let options = vec!["Yes", "No"];
         match select_from("Do you confirm this order?", &options) {
             SelectResult::Selected("Yes") => {
+                machine_data.order_intent = Some(crate::interactive::state_machine::OrderIntent::Hold);
                 finalize_order(machine_data);
                 InputResult::Advance
             }

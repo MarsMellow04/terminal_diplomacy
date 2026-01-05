@@ -27,6 +27,9 @@ pub fn fake_game_context_france() -> GameContext {
             (UnitType::Army, RegionKey::from_str("bur").unwrap()),
             (UnitType::Army, RegionKey::from_str("pic").unwrap()),
             (UnitType::Fleet, RegionKey::from_str("bre").unwrap()),
+            (UnitType::Army, RegionKey::from_str("pic").unwrap()),
+            (UnitType::Fleet, RegionKey::from_str("mao").unwrap()),
+            (UnitType::Army, RegionKey::from_str("spa(nc)").unwrap()),
         ]),
     );
 

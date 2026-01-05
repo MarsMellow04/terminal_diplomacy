@@ -1,5 +1,5 @@
 use diplomacy::geo::{RegionKey};
-use diplomacy::{UnitPosition};
+use diplomacy::{UnitPosition, UnitType};
 
 use crate::interactive::states::convoy_sm::choose_destination_of_convoy::ChooseConvoyMove;
 use crate::interactive::util::{SelectResult, select_from};
@@ -20,7 +20,10 @@ impl State for ChooseConvoyUnit {
         let units: Vec<UnitPosition<'static, RegionKey>>= ctx
             .get_unit_positions()
             .iter()
-            .filter(|up|possible_regions.contains(&&up.region) )
+            .filter(|up| {
+                up.unit.unit_type() == UnitType::Army
+                && possible_regions.contains(&&up.region)
+            })
             .cloned()
             .collect();
 

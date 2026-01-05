@@ -62,12 +62,7 @@ where
         while !machine.is_finished() {
             machine.state.render(&machine.data);
 
-            print!("> ");
-            io::stdout().flush().unwrap();
-
             let mut input = String::new();
-            io::stdin().read_line(&mut input).unwrap();
-
             machine.update(input.trim());
         }
 

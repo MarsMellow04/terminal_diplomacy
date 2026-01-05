@@ -37,7 +37,12 @@ impl State for PickMoveState {
 
         for region in ctx.map.regions() {
             let dest = RegionKey::from_str(&region.short_name()).unwrap();
-            if (dest == origin.region) || (region.terrain() == Terrain::Sea){
+            if dest == origin.region {
+                continue;
+            }
+
+            if origin.unit.unit_type() == UnitType::Army && region.terrain() == Terrain::Sea{
+                // A army cannot move to a adjacent sea
                 continue;
             }
 

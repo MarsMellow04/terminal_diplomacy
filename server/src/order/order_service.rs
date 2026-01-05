@@ -4,7 +4,8 @@ use uuid::Uuid;
 use std::iter::Successors;
 use std::sync::Arc;
 
-use crate::game::game_handler::{self, GameHandler, JoinError, OrderError};
+use crate::auth::session::Session;
+use crate::game::game_handler::{self, GameHandler, JoinError, OrderError, OrderOutcome};
 use crate::game::game_instance::GameInstance;
 use crate::game::game_registry::GameRegistry;
 use crate::game::game_registry::GAME_REGISTRY;
@@ -26,22 +27,15 @@ impl OrderService {
         Self {order_repo: given_repo}
     }
 
-    pub async fn send_order(&self, user_id: Uuid, orders: Vec<MappedMainOrder>, game_id:&Uuid) -> Result<(), OrderError> {
+    pub async fn send_order(&self, session: &Session, orders: Vec<MappedMainOrder>) -> Result<OrderOutcome, OrderError> {
         let mut registry = GAME_REGISTRY.write().await;
-        // let gh: &mut GameHandler =  match registry.get_mut_game(game_id) {
-        //     Some(gh) => {gh}
-        //     None => {
-        //         eprintln!("[GAME_SERV ERROR] Non game is found");
-        //         return Err(OrderError);
-        //     }
-        // };
-
-        // More rusty 
+        let game_id = session.current_game.unwrap();
+        let user_id = session.user;
         let gh = registry
-            .get_mut_game(game_id)
+            .get_mut_game(&game_id)
             .ok_or(OrderError::GameNotFound)?;
 
-        gh.recieve_order(user_id, orders)?;
-        Ok(())
+        let res = gh.recieve_order(user_id, orders)?;
+        Ok(res)
     }
 }

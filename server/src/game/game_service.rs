@@ -63,6 +63,8 @@ impl GameService {
                 println!("Successfully joined game!");
             }
         };
+
+        println!("[DEBUG] Current users now in game: {:?}", gh.instance.players);
         
         Ok(())
 

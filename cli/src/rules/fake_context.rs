@@ -23,13 +23,16 @@ pub fn fake_game_context_france() -> GameContext {
     units.insert(
         user_nation.clone(),
         HashSet::from([
-            (UnitType::Army, RegionKey::from_str("par").unwrap()),
-            (UnitType::Army, RegionKey::from_str("bur").unwrap()),
-            (UnitType::Army, RegionKey::from_str("pic").unwrap()),
+            // (UnitType::Army, RegionKey::from_str("par").unwrap()),
+            // (UnitType::Army, RegionKey::from_str("bur").unwrap()),
+            // (UnitType::Army, RegionKey::from_str("pic").unwrap()),
+            // (UnitType::Fleet, RegionKey::from_str("bre").unwrap()),
+            // (UnitType::Army, RegionKey::from_str("pic").unwrap()),
+            // (UnitType::Fleet, RegionKey::from_str("mao").unwrap()),
+            // (UnitType::Army, RegionKey::from_str("spa(nc)").unwrap()),
             (UnitType::Fleet, RegionKey::from_str("bre").unwrap()),
-            (UnitType::Army, RegionKey::from_str("pic").unwrap()),
-            (UnitType::Fleet, RegionKey::from_str("mao").unwrap()),
-            (UnitType::Army, RegionKey::from_str("spa(nc)").unwrap()),
+            (UnitType::Army, RegionKey::from_str("mar").unwrap()),
+            (UnitType::Army, RegionKey::from_str("par").unwrap()),
         ]),
     );
 

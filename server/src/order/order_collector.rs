@@ -7,7 +7,7 @@ use crate::game::{game_handler::OrderError, game_instance::GameInstance};
 
 // I think we may make a trait for this? So there a three types of order collector for each type of order 
 pub struct OrderCollector {
-    player_orders: HashMap<Uuid, Vec<MappedMainOrder>>,
+    pub player_orders: HashMap<Uuid, Vec<MappedMainOrder>>,
 }
 
 pub fn get_order_positions(orders: &Vec<MappedMainOrder>) -> HashSet<(UnitType, RegionKey)> {
@@ -29,6 +29,7 @@ impl OrderCollector {
 
     pub fn submit_order(&mut self, game_instance: &GameInstance, user: Uuid, orders: Vec<MappedMainOrder>) -> Result<Uuid, OrderError> {
         // Must be same phase
+        println!("[DEBUG] This is the current stuff in the game_instabnce: {:?}", game_instance);
         if game_instance.phase != Phase::Main {
             return Err(OrderError::WrongPhase)
         }

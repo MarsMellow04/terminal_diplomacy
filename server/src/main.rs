@@ -103,17 +103,28 @@ async fn handle_client(mut stream: TcpStream, cm: Arc<ConnectionsManager>) -> Re
             stream.write_all(format!("{result_id}\n").as_bytes()).await?;
             stream.write_all(b"\n").await?;
         }
-        // "ORDER" => {
-        //     let order_str = data[2].clone();
-        //     let game_str = data[3].clone();
-        //     cm.handle_order_submission(&order_str, &game_str).await;
-        // }
+        "ORDER" => {
+        // ORDER;MAIN;<session_id>;<orders>\n
+            println!("[DEBUG] Recieved: {:?}", data);
+            let phase = data[1].clone();
+            let session_str = data[2].clone();
+            let orders = data[3].clone();
+
+            match phase.as_str() {
+                "MAIN" => {
+                    let session_id = Uuid::parse_str(&session_str)?;
+                    let result_id = cm.handle_order(session_id, &orders).await?;
+                    return Ok(());
+                }
+                _ => {
+                    return Err("Malformed login message".into());
+                }
+            }
+        }
         _ => {
-            eprintln!("Malformed login message");
-            return Err("Malformed login message".into());
+    
         }
     };
-
     Ok(())
 }
 

@@ -1,11 +1,15 @@
 use crate::data::connection_pool::ConnectionPool;
+use crate::game::game_handler::OrderOutcome;
+use crate::order::order_collector;
 use crate::order::order_service::OrderService;
 use std::sync::Arc;
 
-use crate::data::user::{Entity as User, Column as UserColumn, Model as UserModel, ActiveModel as ActiveUserModel};
+use crate::data::user::{self, ActiveModel as ActiveUserModel, Column as UserColumn, Entity as User, Model as UserModel};
 use crate::data::game::{self, ActiveModel as ActiveGameModel, Column as GameColumn, Entity as Game, Model as GameModel};
+use diplomacy::judge::MappedMainOrder;
 use sea_orm::{EntityTrait, ColumnTrait, QueryFilter};
 use sea_orm::DbErr;
+use time::serde;
 use uuid::{Uuid};
 
 
@@ -98,36 +102,44 @@ impl ConnectionsManager {
 
     pub async fn handle_create(&self, session_id: Uuid) -> Result<Uuid, String> {
         let game_id = self.game_service.create_game().await;
-        // Automatically add the user to the game 
+
+        // Adds the user to the game on the the session
         let mut session_store = self.session_store.write().await;
         let user_session = session_store.get_mut(&session_id).expect("Something has gone wrong and the session is not found");
         user_session.current_game = Some(game_id);
 
+        self.game_service.join_game(&game_id, user_session.user).await.expect("This should always be possible");
+
         // Update the session for the user as they added to a game
-        println!("Debug!: This is the contents of the session: {:?}", user_session);
+        println!("[DEBUG]: This is the contents of the session: {:?}", user_session);
         Ok(session_id)
     }
 
-    pub async fn handle_order_submission(&self, order_str: &str, session_id: Uuid) {
-        // Time being just making a fake user id:
-        let session_store = self.session_store.read().await;
-        let user_session = session_store.get(&session_id).expect("Something has gone wrong and the session is not found");
-        let user_id = user_session.user;
-        let game_id = user_session.current_game.expect("To do this there needs to be. agme");
+    pub async fn handle_order(&self, session_id: Uuid, orders_str: &str) -> Result<Uuid, String> {
+        // I am doing the order conversion here because it is the job of the connection manager
+        // to handle types and parsing... for now
 
-        // Parse the order_str 
-        let Ok(orders) = serde_json::from_str(order_str) else {
-            eprintln!("orders failed to be parse");
-            return;
-        };
+        let orders: Vec<MappedMainOrder> = serde_json::from_str(orders_str)
+            .map_err(|e| format!("Failed to convert {} into json, {}", orders_str, e))?;
+        println!("[DEBUG] Orders parsed {:?}", orders);
+
+        // Now that it is finalized, we get the session 
+        let mut session_store = self.session_store.write().await;
+        let user_session = session_store.get_mut(&session_id).expect("Something has gone wrong and the session is not found");
         
-        match self.order_service.send_order(user_id, orders, &game_id).await {
-            Ok(()) => {println!("Game joined succesffully ");}
-            Err(e) => {
-                println!("lol not dealing with this {e}");
-                return;
-            }
-        };
+        // Sanity check
+        assert!(user_session.current_game.is_some());
+        let res = self.order_service
+            .send_order(&user_session, orders)
+            .await
+            .map_err(|e| format!("Failed to submit main order: {e}"))?;
+
+        match res {
+            OrderOutcome::Accepted => {println!("Correctly added the order!")}
+            _ => {}
+        }
+        Ok(Uuid::max())
     }
+
 } 
 

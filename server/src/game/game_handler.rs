@@ -1,6 +1,7 @@
 use diplomacy::{Nation, judge::MappedMainOrder};
+use rand::{seq::IndexedRandom};
 use uuid::Uuid;
-use std::fmt;
+use std::{fmt, iter};
 use crate::order::order_collector::{self, OrderCollector};
 
 use super::game_instance::GameInstance;
@@ -27,6 +28,14 @@ pub enum OrderError {
     InvalidOrderPositions,
     UserReadied,
 }
+
+#[derive(Debug)]
+pub enum OrderOutcome {
+    Accepted,              // Order stored, waiting for others
+    PhaseResolved,         // Orders resolved, game state changed
+    GameAdvanced,          // Phase resolved AND game advanced
+}
+
 
 impl fmt::Display for OrderError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -81,8 +90,25 @@ pub fn try_join(&mut self, user_id: UserId) -> Result<(), JoinError>{
             return Err(JoinError);
         }
 
-        // TODO: Make this a nation at random 
-        self.instance.players.insert(user_id, Nation::from("FRA"));
+        let in_use_nations: Vec<&Nation> = self.instance.players.values().into_iter().collect();
+
+        // TODO: This is such messy rust code but i will deal with it later
+        let possible_nation: Vec<Nation> = vec!["eng","fra","ger","ita","rus","tur","aus"]
+            .into_iter()
+            .filter_map(|nat| {
+                let nat = Nation::from(nat);
+                if !(in_use_nations.contains(&&nat)) {
+                    Some(nat)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        
+        let nation = possible_nation.choose(&mut rand::rng()).unwrap().clone();
+        
+        // TODO: When finished removign faking
+        self.instance.players.insert(user_id, Nation::from("fra"));
         Ok(())
     }
 
@@ -90,7 +116,7 @@ pub fn try_join(&mut self, user_id: UserId) -> Result<(), JoinError>{
         Ok(())
     }
 
-    pub fn recieve_order(&mut self, user_id: UserId, orders: Vec<MappedMainOrder>) -> Result<(), OrderError>{
+    pub fn recieve_order(&mut self, user_id: UserId, orders: Vec<MappedMainOrder>) -> Result<OrderOutcome, OrderError>{
         // Do other crap
         // Check if the user has already readied
         if self.order_collector.is_player_ready(user_id) {
@@ -104,8 +130,11 @@ pub fn try_join(&mut self, user_id: UserId) -> Result<(), JoinError>{
         if self.order_collector.all_players_ready(){
             // This is the implicit check, we need to implementa timed checkig process also
             self.resolve_orders()?;
+            return Ok(OrderOutcome::GameAdvanced);
         }
 
-        Ok(())
+        println!("[DEBUG] Order has been accepted showcasing current state sitation, orders: {:?}\n", self.order_collector.player_orders);
+
+        Ok(OrderOutcome::Accepted)
     }
 }

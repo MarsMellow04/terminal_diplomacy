@@ -84,8 +84,8 @@ async fn handle_client(mut stream: TcpStream, cm: Arc<ConnectionsManager>) -> Re
         }
         "JOIN" => {
             println!("[DEBUG] Recieved: {:?}", data);
-            let game_id =  data[1].clone();
-            let session_str = data[2].clone();
+            let session_str = data[1].clone();
+            let game_id =  data[2].clone();
             let session_id = Uuid::parse_str(&session_str)?;
             let result_id = cm.handle_join(&game_id, session_id).await?;
 

@@ -35,7 +35,7 @@ fn get_starting_positions() -> HashMap<Nation, HashSet<(UnitType, RegionKey)>> {
         (Nation::from("rus"), vec![
             (UnitType::Army, RegionKey::from_str("mos").unwrap()),
             (UnitType::Fleet, RegionKey::from_str("sev").unwrap()),
-            (UnitType::Fleet, RegionKey::from_str("stp_sc").unwrap()),
+            (UnitType::Fleet, RegionKey::from_str("stp(sc)").unwrap()),
             (UnitType::Army, RegionKey::from_str("war").unwrap()),
         ]),
         (Nation::from("tur"), vec![

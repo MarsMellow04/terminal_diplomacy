@@ -8,6 +8,7 @@ use crate::game::{game_handler::OrderError, game_instance::GameInstance};
 // I think we may make a trait for this? So there a three types of order collector for each type of order 
 pub struct OrderCollector {
     pub player_orders: HashMap<Uuid, Vec<MappedMainOrder>>,
+    ready_players: HashMap<Uuid, bool>
 }
 
 pub fn get_order_positions(orders: &Vec<MappedMainOrder>) -> HashSet<(UnitType, RegionKey)> {
@@ -24,7 +25,7 @@ pub fn get_order_positions(orders: &Vec<MappedMainOrder>) -> HashSet<(UnitType, 
 
 impl OrderCollector {
     pub fn new() -> Self  {
-        Self { player_orders: HashMap::with_capacity(7) }
+        Self { player_orders: HashMap::with_capacity(7), ready_players: HashMap::with_capacity(7)}
     }
 
     pub fn submit_order(&mut self, game_instance: &GameInstance, user: Uuid, orders: Vec<MappedMainOrder>) -> Result<Uuid, OrderError> {
@@ -47,17 +48,23 @@ impl OrderCollector {
         }
         
         self.player_orders.insert(user, orders);
+        self.mark_ready(user);
         Ok(user)
     }
 
-    pub fn mark_ready(user: Uuid) {}
+    pub fn mark_ready(&mut self, user: Uuid) {
+        self.ready_players.insert(user, true);
+    }
 
-    pub fn is_player_ready(&self, _user: Uuid) -> bool {
-        false
+    pub fn is_player_ready(&self, user: &Uuid) -> bool {
+        self.ready_players.get(user).unwrap_or(&false).clone()
     }
 
     pub fn all_players_ready(&self) -> bool {
-        false
+        if self.ready_players.len() < 7 {
+            return false;
+        }
+        self.ready_players.values().into_iter().all(|&val| val)
     }
 
     pub fn snapshot(&self) -> Result<String, serde_json::Error>{

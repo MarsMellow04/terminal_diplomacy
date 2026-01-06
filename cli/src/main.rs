@@ -36,8 +36,8 @@ enum Commands {
         game: String,
     },
     Order {
-        name: String,
-        game: String,
+        #[arg(short, long)]
+        orders: Option<String>
     },
     Register {
         username: String,
@@ -81,8 +81,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             cmd.execute().await
         }
 
-        Commands::Order { name, game } => {
-            let mut cmd = OrderCommand::new(client, &session, Some(name), game);
+        Commands::Order { orders } => {
+            let mut cmd = OrderCommand::new(client, &session, orders);
             cmd.execute().await
         }
 

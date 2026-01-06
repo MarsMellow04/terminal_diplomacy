@@ -11,6 +11,8 @@ pub enum CommandError {
     NoSessionTokenRead,
     SessionSaveFailed,
     NoContextFound,
+    CannotParseOrder(serde_json::Error),
+    FlagNotFound
 }
 
 #[automock]

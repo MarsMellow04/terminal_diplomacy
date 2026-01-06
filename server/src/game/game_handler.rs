@@ -2,7 +2,7 @@ use diplomacy::{Nation, judge::{MappedMainOrder, Rulebook, Submission}};
 use rand::{seq::IndexedRandom};
 use uuid::Uuid;
 use std::{fmt::{self, format}, io::{Write, stdin, stdout}, iter};
-use crate::order::order_collector::{self, OrderCollector};
+use crate::order::order_collector::{self, MainOrderCollector, OrderCollector};
 use serde::ser::Serializer;
 
 use super::game_instance::GameInstance;
@@ -68,7 +68,7 @@ impl fmt::Display for OrderError {
 pub struct GameHandler {
     pub id: Uuid,
     pub instance: GameInstance,
-    pub order_collector: OrderCollector
+    pub order_collector: MainOrderCollector
 }
 
 impl GameHandler {
@@ -76,7 +76,7 @@ impl GameHandler {
         Self {
             id: Uuid::new_v4(),
             instance: GameInstance::new(),
-            order_collector: OrderCollector::new(),
+            order_collector: MainOrderCollector::new(),
             
         }
     }

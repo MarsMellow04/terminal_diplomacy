@@ -154,6 +154,9 @@ async fn handle_client(mut stream: TcpStream, cm: Arc<ConnectionsManager>) -> Re
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>>{
     const CONNECTION_STRING: &str = "postgresql://postgres:mysecretpassword@localhost:5433/postgres";
+
+    // TODO: Empty the users table before launching the server
+    
     let pool = Arc::new(ConnectionPool::connect(CONNECTION_STRING).await);
     let game_repo = Arc::new(GameRepository::new(pool.clone()));
     let order_repo = Arc::new(OrderRepository::new(pool.clone()));

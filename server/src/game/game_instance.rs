@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use std::borrow::Cow;
 
+use diplomacy::{Calendar, Time, Season};
 use uuid::Uuid;
 use diplomacy::{
     Nation, Phase, Unit, UnitPosition, UnitType,
@@ -13,13 +14,13 @@ type UserId = Uuid;
 
 fn get_starting_positions() -> HashMap<Nation, HashSet<(UnitType, RegionKey)>> {
     let data: &[(&str, &[(&str, &str)])] = &[
-        ("aus", &[("Army","bud"),("Fleet","tri"),("Army","vie")]),
-        ("eng", &[("Fleet","edi"),("Army","lvp"),("Fleet","lon")]),
-        ("fra", &[("Fleet","bre"),("Army","mar"),("Army","par")]),
-        ("ger", &[("Army","ber"),("Fleet","kie"),("Army","mun")]),
-        ("ita", &[("Fleet","nap"),("Army","rom"),("Army","ven")]),
-        ("rus", &[("Army","mos"),("Fleet","sev"),("Fleet","stp(sc)"),("Army","war")]),
-        ("tur", &[("Fleet","ank"),("Army","con"),("Army","smy")]),
+        ("AUS", &[("Army","bud"),("Fleet","tri"),("Army","vie")]),
+        ("ENG", &[("Fleet","edi"),("Army","lvp"),("Fleet","lon")]),
+        ("FRA", &[("Fleet","bre"),("Army","mar"),("Army","par")]),
+        ("GER", &[("Army","ber"),("Fleet","kie"),("Army","mun")]),
+        ("ITA", &[("Fleet","nap"),("Army","rom"),("Army","ven")]),
+        ("RUS", &[("Army","mos"),("Fleet","sev"),("Fleet","stp(sc)"),("Army","war")]),
+        ("TUR", &[("Fleet","ank"),("Army","con"),("Army","smy")]),
     ];
 
     let mut map = HashMap::new();
@@ -48,8 +49,6 @@ pub struct PendingRetreat {
     pub options: HashSet<RegionKey>,
 }
 
-
-#[derive(Debug, Clone)]
 pub struct GameInstance {
     pub players: HashMap<UserId, Nation>,
     pub phase: Phase,
@@ -60,6 +59,37 @@ pub struct GameInstance {
     pub units: HashMap<Nation, HashSet<(UnitType, RegionKey)>>,
 
     pub pending_retreats: Vec<PendingRetreat>,
+    pub time: Time
+}
+
+impl Clone for GameInstance {
+    fn clone(&self) -> Self {
+        Self {
+            players: self.players.clone(),
+            phase: self.phase.clone(),
+            map: self.map.clone(),
+            last_owners: self.last_owners.clone(),
+            occupiers: self.occupiers.clone(),
+            units: self.units.clone(),
+            pending_retreats: self.pending_retreats.clone(),
+            time: Time::new(Season::Spring, 1901, Phase::Main),
+        }
+    }
+}
+
+impl std::fmt::Debug for GameInstance {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GameInstance")
+            .field("players", &self.players)
+            .field("phase", &self.phase)
+            .field("map", &self.map)
+            .field("last_owners", &self.last_owners)
+            .field("occupiers", &self.occupiers)
+            .field("units", &self.units)
+            .field("pending_retreats", &self.pending_retreats)
+            .field("time", &"<Calendar>")
+            .finish()
+    }
 }
 
 impl GameInstance {
@@ -72,6 +102,7 @@ impl GameInstance {
             occupiers: HashMap::new(),
             units: get_starting_positions(),
             pending_retreats: Vec::new(),
+            time: Time::new(Season::Spring, 1901, Phase::Main),
         }
     }
 
@@ -96,6 +127,7 @@ impl GameInstance {
             let region = pos.region.clone();
             let province: ProvinceKey = region.province().clone();
 
+            println!("[DEBUG] Inserting unit: nation={:?}, type={:?}, region={:?}", nation, ut, region);
             self.units.entry(nation.clone()).or_default().insert((ut, region));
             self.occupiers.insert(province, nation);
         }
@@ -103,6 +135,7 @@ impl GameInstance {
         for prov in self.map.provinces().filter(|p| p.is_supply_center()) {
             let key: ProvinceKey = prov.into();
             if let Some(n) = self.occupiers.get(&key) {
+                // println!("[DEBUG] Inserting last owner: key={:?}, nation={:?}", key, n);
                 self.last_owners.insert(key, n.clone());
             }
         }
@@ -134,7 +167,30 @@ impl WorldState for GameInstance {
     }
 
     fn unit_count(&self, nation: &Nation) -> u8 {
-        self.units.get(nation).map(|u| u.len() as u8).unwrap_or(0)
+        println!("================ unit_count DEBUG ================");
+        println!("Looking up nation: {:?}", nation);
+
+        println!("Full units hashmap:");
+        for (nat, units) in &self.units {
+            println!("  {:?} => {} units:", nat, units.len());
+            for (ut, region) in units {
+                println!("    - {:?} {:?}", ut, region);
+            }
+        }
+
+        let count = self
+            .units
+            .get(nation)
+            .map(|u| u.len() as u8)
+            .unwrap_or(0);
+
+        println!(
+            "Computed unit_count for {:?} = {}",
+            nation, count
+        );
+        println!("==================================================");
+
+        count
     }
 
     fn units(&self, nation: &Nation) -> HashSet<(UnitType, RegionKey)> {

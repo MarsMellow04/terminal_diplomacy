@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::fmt;
 use std::collections::{HashMap, HashSet};
 
-use diplomacy::Command;
+use diplomacy::{Calendar, Command, Time};
 use uuid::Uuid;
 use diplomacy::{
     Nation, Phase, Unit, UnitPosition,
@@ -20,6 +20,12 @@ use crate::{
         MainOrderCollector, RetreatOrderCollector, BuildOrderCollector, OrderCollector,
     },
 };
+
+use diplomacy::Season::Spring;
+use diplomacy::Season::Fall;
+use diplomacy::Season::Winter;
+use diplomacy::Phase::{Main,Retreat,Build};
+
 
 type UserId = Uuid;
 
@@ -80,7 +86,7 @@ impl GameHandler {
         let taken: HashSet<&Nation> = self.instance.players.values().collect();
 
         // TODO: Make this random, but for testing it's deterministic
-        let nation = ["eng", "fra", "ger", "ita", "aus", "rus", "tur"]
+        let nation = ["ENG", "FRA", "GER", "ITA", "AUS", "RUS", "TUR"]
             .into_iter()
             .map(Nation::from)
             .find(|n| !taken.contains(n))
@@ -101,6 +107,7 @@ impl GameHandler {
 
         // Apply successful
         let positions = owned_positions(retreat.unit_positions());
+        println!("[DEBUG] Positions of retreats: {:?}", positions);
         
         // Extract owned retreat info
         let retreat_data: Vec<_> = retreat.retreat_destinations().iter()
@@ -112,7 +119,8 @@ impl GameHandler {
 
         // Drop retreat to release the immutable borrow
         drop(retreat);
-
+        
+        println!("[DEBUG] Adding new posiitons");
         self.instance.apply_new_positions(positions.clone());
         self.instance.pending_retreats.clear();
 
@@ -127,13 +135,38 @@ impl GameHandler {
             }
         }
 
-        self.instance.phase = if self.instance.pending_retreats.is_empty() {
-            Phase::Build
+        let calendar = Calendar::new(
+            self.instance.time.clone(),
+            vec![(Spring, Main), (Fall, Main), (Winter, Build)],
+        ).unwrap();
+
+        // TODO: This needs to be done for all of them not just this
+        self.instance.time = if self.instance.pending_retreats.is_empty() {
+            println!("[DEBUG] Moving onto build phase as there are no retreats!");
+            calendar.iter().nth(2).expect("No next time available")
         } else {
-            Phase::Retreat
+            calendar.iter().nth(1).expect("No next time available")
         };
 
         self.main_orders.clear();
+        println!("[DEBUG] This is the phase we are currently in! {:?}", self.instance.time);
+        
+        // match self.instance.phase {
+        //     Phase::Build => {
+        //         // Now we will check to see if it will be prereadied
+        //         self.build_orders.pre_add_readiness(&self.instance);
+        //         if self.build_orders.all_players_ready() {
+        //             self.resolve_build()?;
+        //         }
+        //     }
+        //     Phase::Retreat => {
+        //         self.retreat_orders.pre_add_readiness(&self.instance);
+        //         if self.build_orders.all_players_ready() {
+        //             self.resolve_build()?;
+        //         }
+        //     }
+        //     _ => {}
+        // }
         Ok(())
     }
 
@@ -150,6 +183,7 @@ impl GameHandler {
         )?;
 
         if ready {
+            println!("[DEBUG] Moving on to resolving!");
             self.resolve_main()?;
             Ok(OrderOutcome::GameAdvanced)
         } else {
@@ -232,6 +266,7 @@ impl GameHandler {
 
         self.instance.apply_new_positions(positions);
         self.instance.phase = Phase::Main;
+        println!("[DEBUG] Phase changed: Build -> Main");
         self.build_orders.clear();
         Ok(())
     }

@@ -82,10 +82,17 @@ impl OrderCollector<MappedMainOrder> for MainOrderCollector {
     }
 
     fn all_players_ready(&self) -> bool {
+        println!(
+            "[DEBUG] ready_players = {:?}, players = {:?}",
+            self.ready_players.keys(),
+            self.ready_players.values()
+        );
         if self.ready_players.len() < 7 {
             return false;
+        } else {
+            println!("[DEBUG] I will return true");
+            return true;
         }
-        self.ready_players.values().into_iter().all(|&val| val)
     }
 
     fn snapshot(&self) -> Option<String> {

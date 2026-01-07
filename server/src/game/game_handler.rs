@@ -1,74 +1,61 @@
-use diplomacy::{Nation, judge::{MappedMainOrder, Rulebook, Submission}};
-use rand::{seq::IndexedRandom};
-use uuid::Uuid;
-use std::{fmt::{self, format}, io::{Write, stdin, stdout}, iter};
-use crate::order::order_collector::{self, MainOrderCollector, OrderCollector};
-use serde::ser::Serializer;
+use std::borrow::Cow;
+use std::fmt;
+use std::collections::{HashMap, HashSet};
 
-use super::game_instance::GameInstance;
+use diplomacy::Command;
+use uuid::Uuid;
+use diplomacy::{
+    Nation, Phase, Unit, UnitPosition,
+    geo::RegionKey,
+    judge::{
+        MappedBuildOrder, MappedMainOrder, MappedRetreatOrder,
+        Rulebook, Submission,
+    },
+    UnitPositions,
+};
+
+use crate::{
+    game::game_instance::{GameInstance, PendingRetreat},
+    order::order_collector::{
+        MainOrderCollector, RetreatOrderCollector, BuildOrderCollector, OrderCollector,
+    },
+};
 
 type UserId = Uuid;
+
+#[derive(Debug)]
+pub enum OrderError {
+    WrongPhase,
+    UserReadied,
+    IncorrectOrderCount,
+    InvalidOrderCount { expected: usize, found: usize },
+    InvalidOrderPositions,
+    GameNotFound
+}
+
+#[derive(Debug)]
+pub enum OrderOutcome {
+    Accepted,
+    GameAdvanced,
+}
 
 #[derive(Debug, Clone)]
 pub struct JoinError;
 
 impl fmt::Display for JoinError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "This game is full, cannot join")
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "This game is full or the user has already joined")
     }
 }
 
-#[derive(Debug)]
-pub enum OrderError {
-    GameNotFound,
-    WrongPhase,
-    IncorrectOrderCount {
-        expected: usize,
-        found: usize,
-    },
-    InvalidOrderPositions,
-    UserReadied,
-}
-
-#[derive(Debug)]
-pub enum OrderOutcome {
-    Accepted,              // Order stored, waiting for others
-    PhaseResolved,         // Orders resolved, game state changed
-    GameAdvanced,          // Phase resolved AND game advanced
-}
-
-
-impl fmt::Display for OrderError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            OrderError::GameNotFound =>
-                write!(f, "Game not found"),
-
-            OrderError::WrongPhase =>
-                write!(f, "Orders cannot be submitted in the current phase"),
-
-            OrderError::IncorrectOrderCount { expected, found } =>
-                write!(
-                    f,
-                    "Incorrect number of orders: expected {}, found {}",
-                    expected, found
-                ),
-
-            OrderError::InvalidOrderPositions =>
-                write!(f, "Orders do not match unit positions"),
-            
-            OrderError::UserReadied => 
-                write!(f, "User has already readied, cannot add another order.")
-        }
-    }
-}
-
-
+impl std::error::Error for JoinError {}
 
 pub struct GameHandler {
     pub id: Uuid,
     pub instance: GameInstance,
-    pub order_collector: MainOrderCollector
+    pub main_orders: MainOrderCollector,
+    pub retreat_orders: RetreatOrderCollector,
+    pub build_orders: BuildOrderCollector,
 }
 
 impl GameHandler {
@@ -76,88 +63,155 @@ impl GameHandler {
         Self {
             id: Uuid::new_v4(),
             instance: GameInstance::new(),
-            order_collector: MainOrderCollector::new(),
-            
+            main_orders: MainOrderCollector::new(),
+            retreat_orders: RetreatOrderCollector::new(),
+            build_orders: BuildOrderCollector::new(),
         }
     }
-pub fn try_join(&mut self, user_id: UserId) -> Result<(), JoinError>{
-        // In the future I want tgis to be a token taht is sent with the user to prove they are logged in but I can't for nwo 
+
+    pub fn try_join(&mut self, user_id: UserId) -> Result<(), JoinError> {
         if self.instance.is_full() {
-            eprintln!("This game is full!");
             return Err(JoinError);
         }
-
         if self.instance.players.contains_key(&user_id) {
-            eprintln!("This game already contains this user");
             return Err(JoinError);
         }
 
-        let in_use_nations: Vec<&Nation> = self.instance.players.values().into_iter().collect();
+        let taken: HashSet<&Nation> = self.instance.players.values().collect();
 
-        // TODO: This is such messy rust code but i will deal with it later
-        let possible_nation: Vec<Nation> = vec!["eng","fra","ger","ita","aus","rus","tur"]
+        // TODO: Make this random, but for testing it's deterministic
+        let nation = ["eng", "fra", "ger", "ita", "aus", "rus", "tur"]
             .into_iter()
-            .filter_map(|nat| {
-                let nat = Nation::from(nat);
-                if !(in_use_nations.contains(&&nat)) {
-                    Some(nat)
-                } else {
-                    None
-                }
+            .map(Nation::from)
+            .find(|n| !taken.contains(n))
+            .expect("No available nations, but game is not full");
+
+        self.instance.players.insert(user_id, nation);
+        Ok(())
+    }
+
+// Main
+
+    pub fn resolve_main(&mut self) -> Result<(), OrderError> {
+        let orders = self.main_orders.all_orders();
+        let submission = Submission::with_inferred_state(self.instance.map_used(), orders);
+        let outcome = submission.adjudicate(Rulebook::default());
+
+        let retreat = outcome.to_retreat_start();
+
+        // Apply successful
+        let positions = owned_positions(retreat.unit_positions());
+        
+        // Extract owned retreat info
+        let retreat_data: Vec<_> = retreat.retreat_destinations().iter()
+            .map(|(pos, dests)| {
+                let available: HashSet<RegionKey> = dests.available().into_iter().cloned().collect::<HashSet<_>>();
+                (pos.unit.nation().clone(), pos.unit.unit_type(), pos.region.clone(), available)
             })
             .collect();
 
-        // Currently we want to make it guaranteed to a certain order
-        // let nation = possible_nation.choose(&mut rand::rng()).unwrap().clone();
-        self.instance.players.insert(user_id, possible_nation.first().unwrap().clone());
+        // Drop retreat to release the immutable borrow
+        drop(retreat);
+
+        self.instance.apply_new_positions(positions.clone());
+        self.instance.pending_retreats.clear();
+
+        for (nation, unit_type, from, available) in retreat_data {
+            if !available.is_empty() {
+                self.instance.pending_retreats.push(PendingRetreat {
+                    nation,
+                    unit_type,
+                    from,
+                    options: available,
+                });
+            }
+        }
+
+        self.instance.phase = if self.instance.pending_retreats.is_empty() {
+            Phase::Build
+        } else {
+            Phase::Retreat
+        };
+
+        self.main_orders.clear();
         Ok(())
     }
 
-    pub fn resolve_orders(&mut self) -> Result<(), OrderError> {
-        // this should also have a self. handle x y or z depending 
-        // Now need to correctly resolve orders, which i thought I made....
-        let orders = self.order_collector.all_orders();
-        let submission = Submission::with_inferred_state(
-            self.instance.map_used(), 
-            orders);
+// Retreat
+
+    pub fn resolve_retreat(&mut self) -> Result<(), OrderError> {
+        if self.instance.phase != Phase::Retreat {
+            return Err(OrderError::WrongPhase);
+        }
+
+        let orders = self.retreat_orders.all_orders();
+
+        let mut placements = Vec::new();
+        let mut claims: HashMap<RegionKey, Vec<&PendingRetreat>> = HashMap::new();
+
+        for r in &self.instance.pending_retreats {
+            if let Some(ord) = orders.iter().find(|o| o.region == r.from) {
+                if let Some(dest) = ord.command.move_dest() {
+                    if r.options.contains(&dest) {
+                        claims.entry(dest.clone()).or_default().push(r);
+                    }
+                }
+            }
+        }
+
+        for (dest, units) in claims {
+            if units.len() == 1 {
+                let u = units[0];
+                placements.push(UnitPosition::new(
+                    Unit::new(Cow::Owned(u.nation.clone()), u.unit_type),
+                    dest,
+                ));
+            }
+        }
+
+        self.instance.apply_new_positions(placements);
+        self.instance.pending_retreats.clear();
+        self.instance.phase = Phase::Build;
+        self.retreat_orders.clear();
+        Ok(())
+    }
+
+// Build
+
+    pub fn resolve_build(&mut self) -> Result<(), OrderError> {
+        let orders = self.build_orders.all_orders();
+        let submission = diplomacy::judge::build::Submission::new(
+            self.instance.map_used(),
+            &self.instance.last_owners,
+            &self.instance,
+            orders,
+        );
+
         let outcome = submission.adjudicate(Rulebook::default());
-        let mut ser = serde_json::Serializer::pretty(std::io::stdout());
-        // ser.collect_seq(outcome.all_orders_with_outcomes()).unwrap();
+        let positions: Vec<_> = outcome.to_final_unit_positions().collect();
 
-        let retreat_start = outcome.to_retreat_start();
-        let test = retreat_start
-            .retreat_destinations()
-            .iter()
-            .map(|unit| format!("This is the unit and destinations for retreat {:?}", unit));
-
-        test.for_each(|str| println!("{:?}", str));
-        // serde_json::to_writer_pretty(std::io::stdout(), &retreat_start).unwrap();
-
-        // Now this is done we now need to change the instance so it is actually chnaging where units are
+        self.instance.apply_new_positions(positions);
+        self.instance.phase = Phase::Main;
+        self.build_orders.clear();
         Ok(())
     }
+}
 
-    pub fn recieve_order(&mut self, user_id: UserId, orders: Vec<MappedMainOrder>) -> Result<OrderOutcome, OrderError>{
-        // This should now route them to a different order collector depenign on the phase of the instance 
-        // deal with tit 
-        // Do other crap
-        // Check if the user has already readied
-        if self.order_collector.is_player_ready(&user_id) {
-            eprintln!("This user has already readied, cannot add another order");
-            return Err(OrderError::UserReadied);
-        }
 
-        self.order_collector.submit_order(&self.instance, user_id, orders)?;
-        
-        // Added, check if everyone has now added 
-        if self.order_collector.all_players_ready(){
-            // This is the implicit check, we need to implementa timed checkig process also
-            self.resolve_orders()?;
-            return Ok(OrderOutcome::GameAdvanced);
-        }
-
-        println!("[DEBUG] Order has been accepted showcasing current state sitation, orders: {:?}\n", self.order_collector.player_orders);
-
-        Ok(OrderOutcome::Accepted)
-    }
+fn owned_positions<'a, I>(positions: I) -> Vec<UnitPosition<'static, RegionKey>>
+where
+    I: IntoIterator<Item = UnitPosition<'a, &'a RegionKey>>,
+{
+    positions
+        .into_iter()
+        .map(|p| {
+            UnitPosition::new(
+                Unit::new(
+                    Cow::Owned(p.unit.nation().clone()),
+                    p.unit.unit_type(),
+                ),
+                p.region.clone(),
+            )
+        })
+        .collect()
 }

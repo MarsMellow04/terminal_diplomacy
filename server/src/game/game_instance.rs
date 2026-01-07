@@ -1,140 +1,160 @@
-use std::{borrow::Cow, collections::{HashMap, HashSet}, default, str::FromStr};
+use std::collections::{HashMap, HashSet};
+use std::str::FromStr;
+use std::borrow::Cow;
 
-use common::context::{GameContext, MapKind};
 use uuid::Uuid;
+use diplomacy::{
+    Nation, Phase, Unit, UnitPosition, UnitType,
+    geo::{Map, ProvinceKey, RegionKey, standard_map},
+};
+use common::context::{GameContext, MapKind};
+
 type UserId = Uuid;
-use diplomacy::{Nation, Phase, Unit, UnitPosition, UnitType, geo::{Map, ProvinceKey, RegionKey, standard_map}};
 
 fn get_starting_positions() -> HashMap<Nation, HashSet<(UnitType, RegionKey)>> {
-    let starting_positions = vec![
-        (Nation::from("aus"), vec![
-            (UnitType::Army, RegionKey::from_str("bud").unwrap()),
-            (UnitType::Fleet, RegionKey::from_str("tri").unwrap()),
-            (UnitType::Army, RegionKey::from_str("vie").unwrap()),
-        ]),
-        (Nation::from("eng"), vec![
-            (UnitType::Fleet, RegionKey::from_str("edi").unwrap()),
-            (UnitType::Army, RegionKey::from_str("lvp").unwrap()),
-            (UnitType::Fleet, RegionKey::from_str("lon").unwrap()),
-        ]),
-        (Nation::from("fra"), vec![
-            (UnitType::Fleet, RegionKey::from_str("bre").unwrap()),
-            (UnitType::Army, RegionKey::from_str("mar").unwrap()),
-            (UnitType::Army, RegionKey::from_str("par").unwrap()),
-        ]),
-        (Nation::from("ger"), vec![
-            (UnitType::Army, RegionKey::from_str("ber").unwrap()),
-            (UnitType::Fleet, RegionKey::from_str("kie").unwrap()),
-            (UnitType::Army, RegionKey::from_str("mun").unwrap()),
-        ]),
-        (Nation::from("ita"), vec![
-            (UnitType::Fleet, RegionKey::from_str("nap").unwrap()),
-            (UnitType::Army, RegionKey::from_str("rom").unwrap()),
-            (UnitType::Army, RegionKey::from_str("ven").unwrap()),
-        ]),
-        (Nation::from("rus"), vec![
-            (UnitType::Army, RegionKey::from_str("mos").unwrap()),
-            (UnitType::Fleet, RegionKey::from_str("sev").unwrap()),
-            (UnitType::Fleet, RegionKey::from_str("stp(sc)").unwrap()),
-            (UnitType::Army, RegionKey::from_str("war").unwrap()),
-        ]),
-        (Nation::from("tur"), vec![
-            (UnitType::Fleet, RegionKey::from_str("ank").unwrap()),
-            (UnitType::Army, RegionKey::from_str("con").unwrap()),
-            (UnitType::Army, RegionKey::from_str("smy").unwrap()),
-        ]),
+    let data: &[(&str, &[(&str, &str)])] = &[
+        ("aus", &[("Army","bud"),("Fleet","tri"),("Army","vie")]),
+        ("eng", &[("Fleet","edi"),("Army","lvp"),("Fleet","lon")]),
+        ("fra", &[("Fleet","bre"),("Army","mar"),("Army","par")]),
+        ("ger", &[("Army","ber"),("Fleet","kie"),("Army","mun")]),
+        ("ita", &[("Fleet","nap"),("Army","rom"),("Army","ven")]),
+        ("rus", &[("Army","mos"),("Fleet","sev"),("Fleet","stp(sc)"),("Army","war")]),
+        ("tur", &[("Fleet","ank"),("Army","con"),("Army","smy")]),
     ];
-    starting_positions
-        .into_iter()
-        .fold(
-            HashMap::default(),
-            |mut map, (nation, units)| {
-                map.insert(nation, units.into_iter().collect());
-                map
-            }
-        )
 
+    let mut map = HashMap::new();
+    for (nat, units) in data {
+        let nation = Nation::from(*nat);
+        map.insert(
+            nation,
+            units.iter()
+                .map(|(t,r)| (
+                    UnitType::from_str(t).unwrap(),
+                    RegionKey::from_str(r).unwrap()
+                ))
+                .collect(),
+        );
+    }
+    map
 }
 
-#[derive(Debug)]
+// Stupid crap i need to stop lifetime issues
+
+#[derive(Debug, Clone)]
+pub struct PendingRetreat {
+    pub nation: Nation,
+    pub unit_type: UnitType,
+    pub from: RegionKey,
+    pub options: HashSet<RegionKey>,
+}
+
+
+#[derive(Debug, Clone)]
 pub struct GameInstance {
     pub players: HashMap<UserId, Nation>,
     pub phase: Phase,
+
     map: Map,
-    last_owners: HashMap<ProvinceKey, Nation>, 
-    occupiers: HashMap<ProvinceKey, Nation>,
-    units: HashMap<Nation, HashSet<(UnitType, RegionKey)>>,
+    pub last_owners: HashMap<ProvinceKey, Nation>,
+    pub occupiers: HashMap<ProvinceKey, Nation>,
+    pub units: HashMap<Nation, HashSet<(UnitType, RegionKey)>>,
+
+    pub pending_retreats: Vec<PendingRetreat>,
 }
 
 impl GameInstance {
-    /// This is all far to overcompliciated but I am trying to figure out how lifetimes work
-    /// I have now removed it anyway
     pub fn new() -> Self {
         Self {
             players: HashMap::with_capacity(7),
             phase: Phase::Main,
             map: standard_map().clone(),
-            last_owners: Default::default(),
-            occupiers: Default::default(),
+            last_owners: HashMap::new(),
+            occupiers: HashMap::new(),
             units: get_starting_positions(),
+            pending_retreats: Vec::new(),
         }
     }
 
-
     pub fn is_full(&self) -> bool {
-        // The maximum amount of players in Diplomacy is 7
-        self.players.len() >= 7 
-    }
-
-    pub fn find_player_units(&self, user_id: &UserId) -> HashSet<(UnitType, RegionKey)> {
-        self.players
-            .get(user_id)
-            // I think this line is very cool
-            .and_then(|nation| self.units.get(nation))
-            .cloned()
-            .unwrap_or_default()
-    }
-
-    pub fn unit_count(&self, user_id: &UserId) -> u8 {
-        self.players
-            .get(user_id)
-            .and_then(|nation| self.units.get(nation))
-            .map(|u| u.len())
-            .unwrap_or_default()
-            .try_into()
-            .unwrap()
+        self.players.len() >= 7
     }
 
     pub fn map_used(&self) -> &Map {
         &self.map
     }
 
-    pub fn get_unit_positions(&self) -> Vec<UnitPosition<'static, RegionKey>> {
-        let mut out = Vec::new();
+    pub fn apply_new_positions<I>(&mut self, positions: I)
+    where
+        I: IntoIterator<Item = UnitPosition<'static, RegionKey>>,
+    {
+        self.units.clear();
+        self.occupiers.clear();
 
-        for (nation, unit_set) in self.units.iter() {
-            for (unit_type, region) in unit_set {
-                let pos = UnitPosition {
-                    unit: Unit::new(Cow::Owned(nation.clone()), unit_type.clone()),
-                    region: region.clone(), // OWNED
-                };
+        for pos in positions {
+            let nation = pos.unit.nation().clone();
+            let ut = pos.unit.unit_type();
+            let region = pos.region.clone();
+            let province: ProvinceKey = region.province().clone();
 
-                out.push(pos);
-            }
+            self.units.entry(nation.clone()).or_default().insert((ut, region));
+            self.occupiers.insert(province, nation);
         }
 
-        out
+        for prov in self.map.provinces().filter(|p| p.is_supply_center()) {
+            let key: ProvinceKey = prov.into();
+            if let Some(n) = self.occupiers.get(&key) {
+                self.last_owners.insert(key, n.clone());
+            }
+        }
     }
 
-    pub fn to_context_for(&self, user_id: &UserId) -> Option<GameContext> {
-        let nation = self.players.get(user_id)?.clone();
-
+    pub fn to_context_for(&self, user: &UserId) -> Option<GameContext> {
+        let nation = self.players.get(user)?.clone();
         Some(GameContext::new(
-            nation, 
-            MapKind::Standard, 
-            self.last_owners.clone(), 
-            self.occupiers.clone(), 
-            self.units.clone()
+            nation,
+            MapKind::Standard,
+            self.last_owners.clone(),
+            self.occupiers.clone(),
+            self.units.clone(),
         ))
+    }
+}
+
+// Build phase support
+
+use diplomacy::judge::build::WorldState;
+
+impl WorldState for GameInstance {
+    fn nations(&self) -> HashSet<&Nation> {
+        self.units.keys().collect()
+    }
+
+    fn occupier(&self, province: &ProvinceKey) -> Option<&Nation> {
+        self.occupiers.get(province)
+    }
+
+    fn unit_count(&self, nation: &Nation) -> u8 {
+        self.units.get(nation).map(|u| u.len() as u8).unwrap_or(0)
+    }
+
+    fn units(&self, nation: &Nation) -> HashSet<(UnitType, RegionKey)> {
+        self.units.get(nation).cloned().unwrap_or_default()
+    }
+}
+
+impl GameInstance {
+    pub fn find_player_units(
+        &self,
+        user_id: &Uuid,
+    ) -> HashSet<(UnitType, RegionKey)> {
+        let nation = match self.players.get(user_id) {
+            Some(n) => n,
+            None => return HashSet::new(),
+        };
+
+        self.units
+            .get(nation)
+            .cloned()
+            .unwrap_or_default()
     }
 }

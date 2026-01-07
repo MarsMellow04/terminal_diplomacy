@@ -117,9 +117,17 @@ async fn handle_client(mut stream: TcpStream, cm: Arc<ConnectionsManager>) -> Re
                     let result_id = cm.handle_main_order(session_id, &orders).await?;
                     return Ok(());
                 }
-                _ => {
-                    return Err("Malformed login message".into());
+                "RETREAT" => {
+                    let session_id = Uuid::parse_str(&session_str)?;
+                    let result_id = cm.handle_retreat_order(session_id, &orders).await?;
+                    return Ok(());
                 }
+                "BUILD" => {
+                    let session_id = Uuid::parse_str(&session_str)?;
+                    let result_id = cm.handle_build_order(session_id, &orders).await?;
+                    return Ok(());
+                }
+                _ => {return Err("Malformed login message".into());}
             }
         }
         "CONTEXT" => {

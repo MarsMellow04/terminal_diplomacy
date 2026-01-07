@@ -7,7 +7,7 @@ use std::sync::Arc;
 use crate::data::user::{self, ActiveModel as ActiveUserModel, Column as UserColumn, Entity as User, Model as UserModel};
 use crate::data::game::{self, ActiveModel as ActiveGameModel, Column as GameColumn, Entity as Game, Model as GameModel};
 use common::context::GameContext;
-use diplomacy::judge::MappedMainOrder;
+use diplomacy::judge::{MappedBuildOrder, MappedMainOrder, MappedRetreatOrder};
 use sea_orm::{EntityTrait, ColumnTrait, QueryFilter};
 use sea_orm::DbErr;
 use time::serde;
@@ -134,6 +134,52 @@ impl ConnectionsManager {
             .send_main_order(&user_session, orders)
             .await
             .map_err(|e| format!("Failed to submit main order: {:?}", e))?;
+
+        match res {
+            OrderOutcome::Accepted => {println!("Correctly added the order!")}
+            _ => {}
+        }
+        Ok(Uuid::max())
+    }
+
+    pub async fn handle_retreat_order(&self, session_id: Uuid, orders_str: &str) -> Result<Uuid, String> {
+        let orders: Vec<MappedRetreatOrder> = serde_json::from_str(orders_str)
+            .map_err(|e| format!("Failed to convert {} into json, {}", orders_str, e))?;
+        println!("[DEBUG] Orders parsed {:?}", orders);
+
+        // Now that it is finalized, we get the session 
+        let mut session_store = self.session_store.write().await;
+        let user_session = session_store.get_mut(&session_id).expect("Something has gone wrong and the session is not found");
+        
+        // Sanity check
+        assert!(user_session.current_game.is_some());
+        let res = self.order_service
+            .send_retreat_order(&user_session, orders)
+            .await
+            .map_err(|e| format!("Failed to submit retreat order: {:?}", e))?;
+
+        match res {
+            OrderOutcome::Accepted => {println!("Correctly added the order!")}
+            _ => {}
+        }
+        Ok(Uuid::max())
+    }
+
+    pub async fn handle_build_order(&self, session_id: Uuid, orders_str: &str) -> Result<Uuid, String> {
+        let orders: Vec<MappedBuildOrder> = serde_json::from_str(orders_str)
+            .map_err(|e| format!("Failed to convert {} into json, {}", orders_str, e))?;
+        println!("[DEBUG] Orders parsed {:?}", orders);
+
+        // Now that it is finalized, we get the session 
+        let mut session_store = self.session_store.write().await;
+        let user_session = session_store.get_mut(&session_id).expect("Something has gone wrong and the session is not found");
+        
+        // Sanity check
+        assert!(user_session.current_game.is_some());
+        let res = self.order_service
+            .send_build_order(&user_session, orders)
+            .await
+            .map_err(|e| format!("Failed to submit retreat order: {:?}", e))?;
 
         match res {
             OrderOutcome::Accepted => {println!("Correctly added the order!")}

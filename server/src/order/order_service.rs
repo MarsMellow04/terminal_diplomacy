@@ -1,5 +1,5 @@
 use diplomacy::UnitPosition;
-use diplomacy::judge::MappedMainOrder;
+use diplomacy::judge::{MappedBuildOrder, MappedMainOrder, MappedRetreatOrder};
 use uuid::Uuid;
 use std::iter::Successors;
 use std::sync::Arc;
@@ -37,5 +37,30 @@ impl OrderService {
 
         let res = gh.receive_main_orders(user_id, orders)?;
             Ok(res)
-        }
+    }
+
+    pub async fn send_retreat_order(&self, session: &Session, orders: Vec<MappedRetreatOrder>) -> Result<OrderOutcome, OrderError> {
+        let mut registry = GAME_REGISTRY.write().await;
+        let game_id = session.current_game.unwrap();
+        let user_id = session.user;
+        let gh = registry
+            .get_mut_game(&game_id)
+            .ok_or(OrderError::GameNotFound)?;
+
+        let res = gh.receive_retreat_orders(user_id, orders)?;
+            Ok(res)
+    }
+
+    pub async fn send_build_order(&self, session: &Session, orders: Vec<MappedBuildOrder>) -> Result<OrderOutcome, OrderError> {
+        let mut registry = GAME_REGISTRY.write().await;
+        let game_id = session.current_game.unwrap();
+        let user_id = session.user;
+        let gh = registry
+            .get_mut_game(&game_id)
+            .ok_or(OrderError::GameNotFound)?;
+
+        let res = gh.receive_build_orders(user_id, orders)?;
+            Ok(res)
+    }
+
 }

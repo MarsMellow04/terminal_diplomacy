@@ -27,7 +27,7 @@ impl OrderService {
         Self {order_repo: given_repo}
     }
 
-    pub async fn send_order(&self, session: &Session, orders: Vec<MappedMainOrder>) -> Result<OrderOutcome, OrderError> {
+    pub async fn send_main_order(&self, session: &Session, orders: Vec<MappedMainOrder>) -> Result<OrderOutcome, OrderError> {
         let mut registry = GAME_REGISTRY.write().await;
         let game_id = session.current_game.unwrap();
         let user_id = session.user;
@@ -35,7 +35,7 @@ impl OrderService {
             .get_mut_game(&game_id)
             .ok_or(OrderError::GameNotFound)?;
 
-    let res = gh.recieve_order(user_id, orders)?;
-        Ok(res)
-    }
+        let res = gh.receive_main_orders(user_id, orders)?;
+            Ok(res)
+        }
 }

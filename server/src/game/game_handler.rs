@@ -137,6 +137,26 @@ impl GameHandler {
         Ok(())
     }
 
+    pub fn receive_main_orders(
+        &mut self,
+        user_id: UserId,
+        orders: Vec<MappedMainOrder>,
+    ) -> Result<OrderOutcome, OrderError> {
+        let ready = Self::receive_with(
+            &self.instance,
+            &mut self.main_orders,
+            user_id,
+            orders,
+        )?;
+
+        if ready {
+            self.resolve_main()?;
+            Ok(OrderOutcome::GameAdvanced)
+        } else {
+            Ok(OrderOutcome::Accepted)
+        }
+    }
+
 // Retreat
 
     pub fn resolve_retreat(&mut self) -> Result<(), OrderError> {
@@ -176,6 +196,26 @@ impl GameHandler {
         Ok(())
     }
 
+    pub fn receive_retreat_orders(
+        &mut self,
+        user_id: UserId,
+        orders: Vec<MappedRetreatOrder>,
+    ) -> Result<OrderOutcome, OrderError> {
+        let ready = Self::receive_with(
+            &self.instance,
+            &mut self.retreat_orders,
+            user_id,
+            orders,
+        )?;
+
+        if ready {
+            self.resolve_retreat()?;
+            Ok(OrderOutcome::GameAdvanced)
+        } else {
+            Ok(OrderOutcome::Accepted)
+        }
+    }
+
 // Build
 
     pub fn resolve_build(&mut self) -> Result<(), OrderError> {
@@ -194,6 +234,26 @@ impl GameHandler {
         self.instance.phase = Phase::Main;
         self.build_orders.clear();
         Ok(())
+    }
+
+    pub fn receive_build_orders(
+        &mut self,
+        user_id: UserId,
+        orders: Vec<MappedBuildOrder>,
+    ) -> Result<OrderOutcome, OrderError> {
+        let ready = Self::receive_with(
+            &self.instance,
+            &mut self.build_orders,
+            user_id,
+            orders,
+        )?;
+
+        if ready {
+            self.resolve_retreat()?;
+            Ok(OrderOutcome::GameAdvanced)
+        } else {
+            Ok(OrderOutcome::Accepted)
+        }
     }
 }
 
@@ -214,4 +274,23 @@ where
             )
         })
         .collect()
+}
+
+impl GameHandler {
+    fn receive_with<O, C>(
+        instance: &GameInstance,
+        collector: &mut C,
+        user_id: UserId,
+        orders: Vec<O>,
+    ) -> Result<bool, OrderError>
+    where
+        C: OrderCollector<O>,
+    {
+        if collector.is_player_ready(&user_id) {
+            return Err(OrderError::UserReadied);
+        }
+
+        collector.submit_order(instance, user_id, orders)?;
+        Ok(collector.all_players_ready())
+    }
 }

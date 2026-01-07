@@ -116,7 +116,7 @@ impl ConnectionsManager {
         Ok(session_id)
     }
 
-    pub async fn handle_order(&self, session_id: Uuid, orders_str: &str) -> Result<Uuid, String> {
+    pub async fn handle_main_order(&self, session_id: Uuid, orders_str: &str) -> Result<Uuid, String> {
         // I am doing the order conversion here because it is the job of the connection manager
         // to handle types and parsing... for now
 
@@ -131,9 +131,9 @@ impl ConnectionsManager {
         // Sanity check
         assert!(user_session.current_game.is_some());
         let res = self.order_service
-            .send_order(&user_session, orders)
+            .send_main_order(&user_session, orders)
             .await
-            .map_err(|e| format!("Failed to submit main order: {e}"))?;
+            .map_err(|e| format!("Failed to submit main order: {:?}", e))?;
 
         match res {
             OrderOutcome::Accepted => {println!("Correctly added the order!")}

@@ -104,6 +104,7 @@ async fn handle_client(mut stream: TcpStream, cm: Arc<ConnectionsManager>) -> Re
             stream.write_all(b"\n").await?;
         }
         "ORDER" => {
+        // Make the additional match for the type
         // ORDER;MAIN;<session_id>;<orders>\n
             println!("[DEBUG] Recieved: {:?}", data);
             let phase = data[1].clone();
@@ -113,7 +114,7 @@ async fn handle_client(mut stream: TcpStream, cm: Arc<ConnectionsManager>) -> Re
             match phase.as_str() {
                 "MAIN" => {
                     let session_id = Uuid::parse_str(&session_str)?;
-                    let result_id = cm.handle_order(session_id, &orders).await?;
+                    let result_id = cm.handle_main_order(session_id, &orders).await?;
                     return Ok(());
                 }
                 _ => {
